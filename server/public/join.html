@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Open in FloatCode</title>
+    <style>
+      :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; color: #eef2ff; background: radial-gradient(circle at top, #1e3a5f, #090b10 55%); }
+      main { width: min(440px, 100%); padding: 34px; border: 1px solid rgba(147,197,253,.2); border-radius: 22px; background: rgba(15,18,25,.86); box-shadow: 0 28px 90px rgba(0,0,0,.45); }
+      .mark { display: grid; width: 48px; height: 48px; place-items: center; border: 1px solid rgba(125,211,252,.28); border-radius: 14px; color: #7dd3fc; background: rgba(59,130,246,.13); font: 700 14px/1 ui-monospace, monospace; }
+      h1 { margin: 19px 0 8px; font-size: 25px; letter-spacing: -.03em; }
+      p { margin: 0 0 22px; color: #9ca3af; font-size: 14px; line-height: 1.55; }
+      a, button { display: grid; width: 100%; height: 44px; place-items: center; border: 0; border-radius: 10px; color: white; background: #2563eb; font: 650 14px/1 inherit; text-decoration: none; cursor: pointer; }
+      a.secondary { margin-top: 10px; color: #dbeafe; background: rgba(255,255,255,.08); }
+      .status { margin-top: 16px; color: #93c5fd; font-size: 12px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">&lt;/&gt;</div>
+      <h1>FloatCode invitation</h1>
+      <p>Open this shared code document in FloatCode. You can join as a guest without registering an email address.</p>
+      <button id="open" type="button">Open FloatCode</button>
+      <a id="download" class="secondary" href="#" hidden>Download FloatCode for macOS</a>
+      <div id="status" class="status" role="status"></div>
+    </main>
+    <script>
+      const downloadUrl = __DOWNLOAD_URL_JSON__;
+      const token = new URLSearchParams(location.hash.slice(1)).get("token");
+      const openButton = document.querySelector("#open");
+      const download = document.querySelector("#download");
+      const status = document.querySelector("#status");
+      if (downloadUrl && /^https:\/\//i.test(downloadUrl)) {
+        download.href = downloadUrl;
+        download.hidden = false;
+      }
+      if (!token || !/^[A-Za-z0-9_-]{40,128}$/.test(token)) {
+        openButton.disabled = true;
+        status.textContent = "This invitation link is invalid.";
+      } else {
+        const deepLink = `floatcode://join?token=${encodeURIComponent(token)}`;
+        openButton.addEventListener("click", () => {
+          status.textContent = "If FloatCode does not open, install it and try again.";
+          location.href = deepLink;
+        });
+      }
+    </script>
+  </body>
+</html>

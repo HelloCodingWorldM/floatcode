@@ -1,0 +1,76 @@
+{
+  "name": "floatcode",
+  "version": "0.4.1",
+  "description": "A transparent collaborative code editor for macOS.",
+  "main": "electron/main.cjs",
+  "author": "FloatCode",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && FLOATCODE_DEV=1 electron .\"",
+    "start": "npm run build && electron .",
+    "build": "vite build",
+    "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check server/index.cjs && node --check src/auth.js && node --check src/collab-api.js && node --check src/main.js && node --check vite.config.mjs",
+    "collab-server": "node server/index.cjs",
+    "collab-server:legacy": "HOST=0.0.0.0 PORT=1234 node ./node_modules/y-websocket/bin/server.cjs",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac:arm64": "npm run build && electron-builder --mac --arm64",
+    "dist:mac:x64": "npm run build && electron-builder --mac --x64"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/lang-javascript": "^6.2.3",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.36.5",
+    "@supabase/supabase-js": "^2.75.0",
+    "ws": "^6.2.6",
+    "y-codemirror.next": "^0.3.5",
+    "y-leveldb": "^0.1.2",
+    "y-websocket": "^2.1.0",
+    "yjs": "^13.6.27"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^35.1.4",
+    "electron-builder": "^26.0.12",
+    "vite": "^6.2.4",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.floatcode.app",
+    "productName": "FloatCode",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "protocols": [
+      {
+        "name": "FloatCode invitation",
+        "schemes": [
+          "floatcode"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "FloatCode-${version}-${arch}.${ext}",
+      "identity": null
+    }
+  }
+}
