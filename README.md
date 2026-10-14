@@ -4,6 +4,18 @@ FloatCode is a movable, transparent, frameless code editor for macOS. It keeps
 syntax-highlighted code visible while providing an always-visible title bar for
 moving the window and switching modes.
 
+## Download for macOS
+
+[Download FloatCode 0.4.1 public beta](https://github.com/HelloCodingWorldM/floatcode/releases/tag/v0.4.1-beta.1).
+No GitHub account is required. Open **Assets** and download the `.dmg` for your Mac:
+
+- **Apple Silicon (M-series):** `FloatCode-0.4.1-arm64.dmg`
+- **Intel:** `FloatCode-0.4.1-x64.dmg`
+
+Open the disk image and drag FloatCode into Applications. The desktop download
+is preconfigured; users do not need Node.js, a terminal, or their own API keys.
+This is an unsigned, non-notarized beta, so macOS may show a security warning.
+
 ## Features
 
 - Fully transparent editor background
