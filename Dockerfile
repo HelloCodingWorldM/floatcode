@@ -17,7 +17,6 @@ ENV NODE_ENV=production \
     PORT=1234 \
     FLOATCODE_DATA_DIR=/data/yjs
 
-VOLUME ["/data"]
 EXPOSE 1234
 USER node
 CMD ["node", "server/index.cjs"]
