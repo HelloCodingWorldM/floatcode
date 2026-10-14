@@ -3,8 +3,19 @@ name: Build macOS release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    paths:
+      - "electron/**"
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.mjs"
+      - ".env.production"
+      - ".github/workflows/release-macos.yml"
 
 permissions:
   contents: write
