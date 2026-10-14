@@ -139,14 +139,22 @@ async function authenticatedUser(request) {
 }
 
 async function supabaseRest(route, { method = "GET", body, query = "", prefer } = {}) {
+  const headers = {
+    apikey: SUPABASE_SECRET_KEY,
+    "Content-Type": "application/json",
+    ...(prefer ? { Prefer: prefer } : {}),
+  };
+
+  // New sb_secret_* keys are opaque, not JWTs, and must only be sent in the
+  // apikey header. Keep Authorization for the legacy JWT service_role key so
+  // existing deployments can migrate without downtime.
+  if (!SUPABASE_SECRET_KEY.startsWith("sb_secret_")) {
+    headers.Authorization = `Bearer ${SUPABASE_SECRET_KEY}`;
+  }
+
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${route}${query}`, {
     method,
-    headers: {
-      apikey: SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
-      "Content-Type": "application/json",
-      ...(prefer ? { Prefer: prefer } : {}),
-    },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(10_000),
   });
