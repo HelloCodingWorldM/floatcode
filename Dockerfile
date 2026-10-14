@@ -18,5 +18,4 @@ ENV NODE_ENV=production \
     FLOATCODE_DATA_DIR=/data/yjs
 
 EXPOSE 1234
-USER node
-CMD ["node", "server/index.cjs"]
+CMD ["sh", "-c", "mkdir -p \"${FLOATCODE_DATA_DIR:-/data/yjs}\" && chown node:node \"${FLOATCODE_DATA_DIR:-/data/yjs}\" && exec su node -s /bin/sh -c 'exec node server/index.cjs'"]
