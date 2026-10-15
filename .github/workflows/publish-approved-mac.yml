@@ -1,0 +1,73 @@
+name: Publish approved Mac beta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - releases/mac-beta.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-approved-mac-beta
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate approved source and build
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version releases/mac-beta.json)
+          TAG=$(jq -r .tag releases/mac-beta.json)
+          SOURCE_SHA=$(jq -r .sourceSha releases/mac-beta.json)
+          RUN_ID=$(jq -r .runId releases/mac-beta.json)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$TAG" == "v${VERSION}-beta.1" ]]
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > build-run.json
+          jq -e --arg sha "$SOURCE_SHA" '.conclusion == "success" and .head_sha == $sha and .head_branch == "main" and .path == ".github/workflows/release-macos.yml"' build-run.json
+          gh api "repos/$GH_REPO/contents/package.json?ref=$SOURCE_SHA" --jq .content | base64 --decode > source-package.json
+          jq -e --arg version "$VERSION" '.version == $version' source-package.json
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          pattern: FloatCode-*
+          merge-multiple: true
+          path: release
+      - name: Verify exact tested packages and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for ARCH in arm64 x64; do
+            test -s "release/FloatCode-$VERSION-$ARCH.dmg"
+            test -s "release/FloatCode-$VERSION-$ARCH.zip"
+            sha256sum --check "release/SHA256SUMS-mac-$ARCH.txt"
+          done
+          if gh release view "$TAG" --json isDraft > existing-release.json 2>/dev/null; then
+            if jq -e '.isDraft == false' existing-release.json >/dev/null; then
+              echo "Release is already public; leaving it unchanged."
+              exit 0
+            fi
+          else
+            gh release create "$TAG" --target "$SOURCE_SHA" --draft --prerelease --title "FloatCode $VERSION 中文 Mac 测试版" --notes-file releases/mac-beta-notes.md
+          fi
+          gh release upload "$TAG" release/*.dmg release/*.zip release/SHA256SUMS-mac-*.txt --clobber
+          gh release edit "$TAG" --draft=false --prerelease --notes-file releases/mac-beta-notes.md
