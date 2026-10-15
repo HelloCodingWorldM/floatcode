@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - mac-signing-fix
+      - mac-ui-fix
     tags:
       - "v*"
     paths:
@@ -16,6 +17,9 @@ on:
       - "package-lock.json"
       - "build/**"
       - "scripts/verify-mac-package.py"
+      - "scripts/test-mac-ui.cjs"
+      - "tests/mac-ui.cjs"
+      - "tests/move-pointer.swift"
       - "vite.config.mjs"
       - ".env.production"
       - ".github/workflows/release-macos.yml"
@@ -43,6 +47,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      - name: Verify Mac text and window controls
+        run: node scripts/test-mac-ui.cjs
       - name: Build ad-hoc signed test package
         run: npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish never
       - name: Verify packaged signature and native startup
