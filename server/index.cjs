@@ -79,7 +79,13 @@ function reject(response, request, status, code, message) {
 
 function allowOrigin(request, response) {
   const origin = request.headers.origin;
-  if (!origin || ALLOWED_ORIGINS.has(origin)) return true;
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.has(origin)) {
+    // Preflight responses do not pass through json(), but need these too.
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Vary", "Origin");
+    return true;
+  }
   reject(response, request, 403, "origin_not_allowed", "This app origin is not allowed.");
   return false;
 }
