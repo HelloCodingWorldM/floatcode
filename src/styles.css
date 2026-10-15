@@ -88,7 +88,8 @@ body {
 .auth-gate {
   position: absolute;
   z-index: 50;
-  inset: 0;
+  /* Keep the titlebar and Hide usable before sign-in too. */
+  inset: 56px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;

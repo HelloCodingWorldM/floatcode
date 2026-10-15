@@ -10,7 +10,6 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
-import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {
   drawSelection,
   dropCursor,
@@ -175,35 +174,33 @@ const highlightCompartment = new Compartment();
 const collaborationCompartment = new Compartment();
 
 function fontTheme(size, transparent = overlayState.transparent) {
-  const light = !transparent;
+  // Clear, unshadowed ink over light desktop surfaces such as Word.
 
   return EditorView.theme({
     "&": {
       height: "100%",
       fontSize: `${size}px`,
-      color: light ? "#111827" : "#e5e7eb",
-      backgroundColor: light ? "#ffffff" : "transparent",
+      color: "#111827",
+      backgroundColor: transparent ? "transparent" : "#ffffff",
     },
     ".cm-scroller": {
       overflow: "auto",
-      backgroundColor: light ? "#ffffff" : "transparent",
+      backgroundColor: transparent ? "transparent" : "#ffffff",
       fontFamily:
         '\"SFMono-Regular\", \"SF Mono\", Menlo, Monaco, Consolas, monospace',
       lineHeight: "1.58",
     },
     ".cm-content": {
       padding: "56px 24px 28px",
-      caretColor: light ? "#111827" : "#ffffff",
-      textShadow: light
-        ? "none"
-        : "0 1px 2px rgba(0,0,0,.98), 0 0 5px rgba(0,0,0,.82)",
+      caretColor: "#111827",
+      textShadow: "none",
     },
     ".cm-line": { padding: "0 3px" },
     ".cm-gutters": {
       border: "none",
-      color: light ? "#94a3b8" : "rgba(203, 213, 225, .5)",
+      color: "#64748b",
       backgroundColor: "transparent",
-      textShadow: light ? "none" : "0 1px 2px rgba(0,0,0,.9)",
+      textShadow: "none",
     },
     ".cm-lineNumbers .cm-gutterElement": {
       minWidth: "34px",
@@ -212,39 +209,34 @@ function fontTheme(size, transparent = overlayState.transparent) {
       textAlign: "right",
     },
     ".cm-activeLineGutter": {
-      color: light ? "#2563eb" : "#bae6fd",
-      backgroundColor: light ? "rgba(37, 99, 235, .08)" : "rgba(125, 211, 252, .08)",
+      color: "#2563eb",
+      backgroundColor: "rgba(37, 99, 235, .08)",
     },
     ".cm-cursor, .cm-dropCursor": {
-      borderLeftColor: light ? "#111827" : "#ffffff",
+      borderLeftColor: "#111827",
       borderLeftWidth: "2px",
     },
     "&.cm-focused": { outline: "none" },
     ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-      background: light ? "rgba(59, 130, 246, .22)" : "rgba(88, 166, 255, .36)",
+      background: "rgba(59, 130, 246, .22)",
     },
     ".cm-activeLine": {
-      background: light ? "rgba(15, 23, 42, .045)" : "rgba(255,255,255,.045)",
+      background: "rgba(15, 23, 42, .045)",
     },
     ".cm-panels, .cm-tooltip": {
-      color: light ? "#111827" : "#f3f4f6",
-      background: light ? "rgba(255, 255, 255, .97)" : "rgba(18, 20, 24, .94)",
-      border: light
-        ? "1px solid rgba(15, 23, 42, .16)"
-        : "1px solid rgba(255,255,255,.16)",
+      color: "#111827",
+      background: "rgba(255, 255, 255, .97)",
+      border: "1px solid rgba(15, 23, 42, .16)",
     },
     ".cm-ySelectionInfo": {
       fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
       textShadow: "none",
     },
-  }, { dark: true });
+  }, { dark: false });
 }
 
-function highlightTheme(transparent = overlayState.transparent) {
-  return syntaxHighlighting(
-    transparent ? oneDarkHighlightStyle : defaultHighlightStyle,
-    transparent ? undefined : { fallback: true },
-  );
+function highlightTheme() {
+  return syntaxHighlighting(defaultHighlightStyle);
 }
 
 function scheduleSave(code) {
@@ -288,7 +280,6 @@ const editor = new EditorView({
       bracketMatching(),
       indentOnInput(),
       highlightActiveLine(),
-      syntaxHighlighting(oneDarkHighlightStyle),
       languageCompartment.of(languageExtensions[currentLanguage]),
       fontCompartment.of(fontTheme(fontSize, overlayState.transparent)),
       highlightCompartment.of(highlightTheme(overlayState.transparent)),
@@ -677,11 +668,17 @@ function bindWindowControl(button, action) {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    void action();
+  });
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void action().catch((error) => {
+      console.error("Window control failed:", error);
+      showToast("Window action failed. Please try again.", 3000);
+    });
   });
 }
 
-hideButton.addEventListener("click", () => window.floatCode.toggleVisibility());
+bindWindowControl(hideButton, () => window.floatCode.hideWindow());
 bindWindowControl(windowCloseButton, () => window.floatCode.hideWindow());
 bindWindowControl(windowMinimizeButton, () => window.floatCode.minimizeWindow());
 bindWindowControl(windowMaximizeButton, () => window.floatCode.toggleMaximizeWindow());

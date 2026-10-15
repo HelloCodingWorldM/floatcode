@@ -13,6 +13,7 @@ const {
 } = require("electron");
 
 const SHORTCUTS = {
+  toggleVisibility: "Alt+1",
   clickThrough: "Alt+2",
   emergencyQuit: "Alt+3",
 };
@@ -42,13 +43,16 @@ function receiveInviteUrl(url) {
   pendingInviteUrl = url.slice(0, 1024);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("invite:received", pendingInviteUrl);
-    mainWindow.showInactive();
-    applyPinnedMode();
+    showWindow();
   }
 }
 
 if (hasSingleInstanceLock) {
-  app.on("second-instance", (_event, argv) => receiveInviteUrl(inviteUrlFromArgs(argv)));
+  app.on("second-instance", (_event, argv) => {
+    const invite = inviteUrlFromArgs(argv);
+    if (invite) receiveInviteUrl(invite);
+    else showWindow();
+  });
   app.on("open-url", (event, url) => {
     event.preventDefault();
     receiveInviteUrl(url);
@@ -161,7 +165,7 @@ function currentState() {
 function applyPinnedMode() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
-  if (mainWindow.isMinimized()) {
+  if (!mainWindow.isVisible() || mainWindow.isMinimized()) {
     mainWindow.setAlwaysOnTop(false);
     return;
   }
@@ -179,6 +183,12 @@ function applyPinnedMode() {
     console.error("Unable to change FloatCode pin state:", error);
   }
 
+}
+
+function configureWorkspaces() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  // This API can hide/show the native app. Never repeat it on blur or show.
+  if (mainWindow.isVisibleOnAllWorkspaces() === pinnedMode) return;
   try {
     mainWindow.setVisibleOnAllWorkspaces(pinnedMode, {
       visibleOnFullScreen: pinnedMode,
@@ -191,6 +201,7 @@ function applyPinnedMode() {
 function protectAndConfigureWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
+  configureWorkspaces();
   applyPinnedMode();
 
   // Best-effort OS content protection. On recent macOS versions, apps using
@@ -213,6 +224,7 @@ function setTransparentMode(enabled) {
 
 function setPinnedMode(enabled) {
   pinnedMode = Boolean(enabled);
+  configureWorkspaces();
   applyPinnedMode();
   broadcastState();
   return currentState();
@@ -296,27 +308,29 @@ function setAuthLocked(enabled) {
   return currentState();
 }
 
-function toggleVisibility() {
+function showWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return currentState();
-
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore();
-    mainWindow.showInactive();
-    applyPinnedMode();
-  } else if (mainWindow.isVisible()) {
-    mainWindow.hide();
-  } else {
-    // Showing the overlay must not take focus away from the active app.
-    mainWindow.showInactive();
-    applyPinnedMode();
-  }
-
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.showInactive();
+  if (clickThrough) startInteractionMonitor();
+  applyMouseInteraction();
+  applyPinnedMode();
   broadcastState();
   return currentState();
 }
 
+function toggleVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return currentState();
+  return mainWindow.isVisible() && !mainWindow.isMinimized()
+    ? hideWindow()
+    : showWindow();
+}
+
 function hideWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return currentState();
+  stopInteractionMonitor();
+  controlsInteractive = false;
+  mainWindow.setAlwaysOnTop(false);
   mainWindow.hide();
   broadcastState();
   return currentState();
@@ -382,6 +396,7 @@ function createWindow() {
     transparent: true,
     backgroundColor: "#00000000",
     frame: false,
+    acceptFirstMouse: true,
     titleBarStyle: "hidden",
     trafficLightPosition: { x: -100, y: -100 },
     hasShadow: false,
@@ -420,7 +435,6 @@ function createWindow() {
     applyPinnedMode();
     broadcastState();
   });
-  mainWindow.on("blur", applyPinnedMode);
   mainWindow.on("hide", broadcastState);
   mainWindow.on("minimize", broadcastState);
   mainWindow.on("restore", broadcastState);
@@ -429,8 +443,7 @@ function createWindow() {
   mainWindow.on("close", (event) => {
     if (!quitting) {
       event.preventDefault();
-      mainWindow.hide();
-      broadcastState();
+      hideWindow();
     }
   });
   mainWindow.on("closed", () => {
@@ -440,6 +453,7 @@ function createWindow() {
 }
 
 function registerShortcuts() {
+  globalShortcut.register(SHORTCUTS.toggleVisibility, toggleVisibility);
   globalShortcut.register(SHORTCUTS.clickThrough, toggleClickThrough);
   globalShortcut.register(SHORTCUTS.emergencyQuit, quitImmediately);
 }
@@ -510,6 +524,7 @@ function createApplicationMenu() {
           { type: "separator" },
           {
             label: "Show or Hide",
+            accelerator: SHORTCUTS.toggleVisibility,
             click: toggleVisibility,
           },
           {
