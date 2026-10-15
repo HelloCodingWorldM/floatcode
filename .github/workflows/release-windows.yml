@@ -9,6 +9,7 @@ on:
       - "src/**"
       - "scripts/**"
       - "tests/**"
+      - "build/installer.nsh"
       - "index.html"
       - "package*.json"
       - "vite.config.mjs"
