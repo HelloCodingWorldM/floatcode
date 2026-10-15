@@ -10,6 +10,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { Compartment, EditorState } from "@codemirror/state";
+import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {
   drawSelection,
   dropCursor,
@@ -175,13 +176,15 @@ const highlightCompartment = new Compartment();
 const collaborationCompartment = new Compartment();
 
 function fontTheme(size, transparent = overlayState.transparent) {
-  // Clear, unshadowed ink over light desktop surfaces such as Word.
+  // Preserve the original bright syntax palette over dark desktop surfaces.
+  // Background mode changes contrast, never adds text shadows.
+  const light = !transparent;
 
   return EditorView.theme({
     "&": {
       height: "100%",
       fontSize: `${size}px`,
-      color: "#111827",
+      color: light ? "#111827" : "#e5e7eb",
       backgroundColor: transparent ? "transparent" : "#ffffff",
     },
     ".cm-scroller": {
@@ -193,13 +196,13 @@ function fontTheme(size, transparent = overlayState.transparent) {
     },
     ".cm-content": {
       padding: "56px 24px 28px",
-      caretColor: "#111827",
+      caretColor: light ? "#111827" : "#ffffff",
       textShadow: "none",
     },
     ".cm-line": { padding: "0 3px" },
     ".cm-gutters": {
       border: "none",
-      color: "#64748b",
+      color: light ? "#64748b" : "#cbd5e1",
       backgroundColor: "transparent",
       textShadow: "none",
     },
@@ -210,19 +213,19 @@ function fontTheme(size, transparent = overlayState.transparent) {
       textAlign: "right",
     },
     ".cm-activeLineGutter": {
-      color: "#2563eb",
-      backgroundColor: "rgba(37, 99, 235, .08)",
+      color: light ? "#2563eb" : "#bae6fd",
+      backgroundColor: light ? "rgba(37, 99, 235, .08)" : "rgba(125, 211, 252, .08)",
     },
     ".cm-cursor, .cm-dropCursor": {
-      borderLeftColor: "#111827",
+      borderLeftColor: light ? "#111827" : "#ffffff",
       borderLeftWidth: "2px",
     },
     "&.cm-focused": { outline: "none" },
     ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-      background: "rgba(59, 130, 246, .22)",
+      background: light ? "rgba(59, 130, 246, .22)" : "rgba(88, 166, 255, .36)",
     },
     ".cm-activeLine": {
-      background: "rgba(15, 23, 42, .045)",
+      background: light ? "rgba(15, 23, 42, .045)" : "rgba(255,255,255,.045)",
     },
     ".cm-panels, .cm-tooltip": {
       color: "#111827",
@@ -233,11 +236,11 @@ function fontTheme(size, transparent = overlayState.transparent) {
       fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
       textShadow: "none",
     },
-  }, { dark: false });
+  }, { dark: transparent });
 }
 
-function highlightTheme() {
-  return syntaxHighlighting(defaultHighlightStyle);
+function highlightTheme(transparent = overlayState.transparent) {
+  return syntaxHighlighting(transparent ? oneDarkHighlightStyle : defaultHighlightStyle);
 }
 
 function scheduleSave(code) {

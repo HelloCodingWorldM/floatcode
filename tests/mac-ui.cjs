@@ -87,12 +87,15 @@ app.whenReady().then(async () => {
         const editor = getComputedStyle(document.querySelector('.cm-editor'));
         return { textShadow: content.textShadow, gutterShadow: gutter.textShadow,
           ink: editor.color, background: editor.backgroundColor,
-          tokens: [...document.querySelectorAll('.cm-line span')].map(s => getComputedStyle(s).textShadow) };
+          tokens: [...document.querySelectorAll('.cm-line span')].map(s => getComputedStyle(s).textShadow),
+          tokenColors: [...new Set([...document.querySelectorAll('.cm-line span')].map(s => getComputedStyle(s).color))] };
       })()`);
       assert.equal(style.textShadow, 'none');
       assert.equal(style.gutterShadow, 'none');
       assert.ok(style.tokens.every(s => s === 'none'));
-      assert.equal(style.ink, 'rgb(17, 24, 39)', 'Dark ink is legible over white');
+      assert.ok(style.tokenColors.length >= (transparent ? 5 : 2), 'Python code keeps distinct syntax colors in both background modes');
+      assert.ok(style.tokenColors.includes(transparent ? 'rgb(198, 120, 221)' : 'rgb(119, 0, 136)'), 'Original syntax palette stays active in each background mode');
+      assert.equal(style.ink, transparent ? 'rgb(229, 231, 235)' : 'rgb(17, 24, 39)', 'Transparent text is bright; white mode keeps dark ink');
       assert.equal(style.background, transparent ? 'rgba(0, 0, 0, 0)' : 'rgb(255, 255, 255)');
     }
     assert.equal(workspaceChanges, initialWorkspaces, 'Hide/show/theme changes do not reconfigure workspaces');
