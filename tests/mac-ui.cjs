@@ -1,6 +1,7 @@
 // Real Electron renderer + IPC tests, using an isolated profile and no accounts.
 const assert = require('node:assert/strict');
-const { app, BrowserWindow, globalShortcut } = require('electron');
+const { app, BrowserWindow, globalShortcut, screen } = require('electron');
+const { execFileSync } = require('node:child_process');
 app.setPath('userData', process.env.FLOATCODE_TEST_USER_DATA);
 app.setAsDefaultProtocolClient = () => true;
 let workspaceChanges = 0;
@@ -37,6 +38,12 @@ app.whenReady().then(async () => {
         if (document.elementFromPoint(x,y) !== button) throw new Error('Button is covered: ' + button.id);
         return { x, y };
       })()`);
+      const bounds = win.getBounds();
+      const globalPoint = { x: bounds.x + point.x, y: bounds.y + point.y };
+      execFileSync(process.env.FLOATCODE_TEST_POINTER_TOOL, [String(globalPoint.x), String(globalPoint.y)]);
+      await delay(100);
+      const cursor = screen.getCursorScreenPoint();
+      assert.ok(Math.abs(cursor.x - globalPoint.x) <= 2 && Math.abs(cursor.y - globalPoint.y) <= 2, 'Native cursor reaches control');
       win.webContents.sendInputEvent({ type: 'mouseMove', ...point });
       win.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
       win.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });

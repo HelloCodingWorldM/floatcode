@@ -19,6 +19,7 @@ on:
       - "scripts/verify-mac-package.py"
       - "scripts/test-mac-ui.cjs"
       - "tests/mac-ui.cjs"
+      - "tests/move-pointer.swift"
       - "vite.config.mjs"
       - ".env.production"
       - ".github/workflows/release-macos.yml"
