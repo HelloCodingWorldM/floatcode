@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("floatCode", {
+  platform: process.platform,
   getState: () => ipcRenderer.invoke("overlay:get-state"),
   setClickThrough: (enabled, focusWhenEditable = true) =>
     ipcRenderer.invoke(

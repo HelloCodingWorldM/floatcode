@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Text", sans-serif;
   background: transparent;
 }
 
@@ -321,6 +321,31 @@ body {
 .window-control:focus-visible {
   color: rgba(35, 35, 35, 0.72);
 }
+
+[data-platform="win32"] .window-controls {
+  order: 10;
+  margin-left: auto;
+  margin-right: -12px;
+  gap: 0;
+  align-self: stretch;
+}
+
+[data-platform="win32"] .window-control {
+  width: 40px;
+  height: 100%;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  font: 16px/1 "Segoe UI", sans-serif;
+}
+
+[data-platform="win32"] .window-control.minimize { order: 1; }
+[data-platform="win32"] .window-control.maximize { order: 2; }
+[data-platform="win32"] .window-control.close { order: 3; }
+[data-platform="win32"] .window-control:hover { background: rgba(125, 211, 252, 0.2); }
+[data-platform="win32"] .window-control.close:hover { background: #c42b1c; color: white; }
+[data-platform="win32"] .shell.maximized .resize-handle { display: none; }
 
 .window-control:focus-visible {
   outline: 2px solid rgba(125, 211, 252, 0.7);

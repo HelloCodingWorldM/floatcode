@@ -13,9 +13,14 @@ const {
 } = require("electron");
 
 const SHORTCUTS = {
+  visibility: "Alt+1",
   clickThrough: "Alt+2",
   emergencyQuit: "Alt+3",
 };
+const isWindows = process.platform === "win32";
+const isMac = process.platform === "darwin";
+const shortcutErrors = [];
+let restoreBounds = null;
 
 let mainWindow = null;
 let tray = null;
@@ -48,7 +53,15 @@ function receiveInviteUrl(url) {
 }
 
 if (hasSingleInstanceLock) {
-  app.on("second-instance", (_event, argv) => receiveInviteUrl(inviteUrlFromArgs(argv)));
+  app.on("second-instance", (_event, argv) => {
+    const invite = inviteUrlFromArgs(argv);
+    if (invite) receiveInviteUrl(invite);
+    else if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.showInactive();
+      applyPinnedMode();
+    }
+  });
   app.on("open-url", (event, url) => {
     event.preventDefault();
     receiveInviteUrl(url);
@@ -153,8 +166,10 @@ function currentState() {
     authLocked,
     visible: Boolean(mainWindow && mainWindow.isVisible()),
     minimized: Boolean(mainWindow && mainWindow.isMinimized()),
-    maximized: Boolean(mainWindow && mainWindow.isMaximized()),
+    maximized: Boolean(restoreBounds || (mainWindow && mainWindow.isMaximized())),
+    platform: process.platform,
     shortcuts: SHORTCUTS,
+    shortcutErrors,
   };
 }
 
@@ -170,7 +185,7 @@ function applyPinnedMode() {
     if (pinnedMode) {
       // pop-up-menu is stronger than the default floating level while still
       // staying below macOS system dialogs.
-      mainWindow.setAlwaysOnTop(true, "pop-up-menu");
+      mainWindow.setAlwaysOnTop(true, isMac ? "pop-up-menu" : "floating");
       mainWindow.moveTop();
     } else {
       mainWindow.setAlwaysOnTop(false);
@@ -179,6 +194,7 @@ function applyPinnedMode() {
     console.error("Unable to change FloatCode pin state:", error);
   }
 
+  if (!isMac) return;
   try {
     mainWindow.setVisibleOnAllWorkspaces(pinnedMode, {
       visibleOnFullScreen: pinnedMode,
@@ -282,6 +298,8 @@ function applyMouseInteraction() {
   const allowControls = clickThrough && controlsInteractive;
   mainWindow.setIgnoreMouseEvents(clickThrough && !allowControls, { forward: true });
   mainWindow.setFocusable(!clickThrough || allowControls);
+  // Windows focusability changes must not strand the app outside the taskbar.
+  if (isWindows) mainWindow.setSkipTaskbar(false);
 }
 
 function setControlsInteractive(_enabled) {
@@ -333,7 +351,26 @@ function minimizeWindow() {
 function toggleMaximizeWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return currentState();
 
-  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  if (isWindows) {
+    // Native maximize/resizable styles break transparent Windows overlays.
+    // Fill the current monitor's work area and keep a reversible bounds snapshot.
+    if (restoreBounds) {
+      const bounds = restoreBounds;
+      restoreBounds = null;
+      const area = screen.getDisplayMatching(bounds).workArea;
+      const width = Math.min(bounds.width, area.width);
+      const height = Math.min(bounds.height, area.height);
+      mainWindow.setBounds({
+        x: Math.max(area.x, Math.min(bounds.x, area.x + area.width - width)),
+        y: Math.max(area.y, Math.min(bounds.y, area.y + area.height - height)),
+        width,
+        height,
+      });
+    } else {
+      restoreBounds = mainWindow.getBounds();
+      mainWindow.setBounds(screen.getDisplayMatching(restoreBounds).workArea);
+    }
+  } else if (mainWindow.isMaximized()) mainWindow.unmaximize();
   else mainWindow.maximize();
 
   applyPinnedMode();
@@ -348,6 +385,7 @@ function toggleClickThrough() {
 
 function resizeWindow(width, height) {
   if (!mainWindow || mainWindow.isDestroyed()) return null;
+  if (restoreBounds) return mainWindow.getBounds();
 
   const [minimumWidth, minimumHeight] = mainWindow.getMinimumSize();
   const bounds = mainWindow.getBounds();
@@ -361,6 +399,7 @@ function resizeWindow(width, height) {
 
 function moveWindow(x, y) {
   if (!mainWindow || mainWindow.isDestroyed()) return null;
+  if (restoreBounds) return mainWindow.getBounds();
 
   const nextX = Math.round(Number(x));
   const nextY = Math.round(Number(y));
@@ -382,10 +421,17 @@ function createWindow() {
     transparent: true,
     backgroundColor: "#00000000",
     frame: false,
-    titleBarStyle: "hidden",
-    trafficLightPosition: { x: -100, y: -100 },
+    ...(isMac ? {
+      titleBarStyle: "hidden",
+      trafficLightPosition: { x: -100, y: -100 },
+    } : {}),
+    ...(isWindows ? {
+      thickFrame: false,
+      maximizable: false,
+      icon: path.join(__dirname, "assets", "icon.ico"),
+    } : {}),
     hasShadow: false,
-    resizable: true,
+    resizable: !isWindows,
     movable: true,
     alwaysOnTop: true,
     fullscreenable: false,
@@ -399,6 +445,7 @@ function createWindow() {
   });
 
   protectAndConfigureWindow();
+  if (!isMac) mainWindow.setMenu(null);
 
   if (process.env.FLOATCODE_DEV === "1") {
     mainWindow.loadURL("http://127.0.0.1:5173");
@@ -435,23 +482,31 @@ function createWindow() {
   });
   mainWindow.on("closed", () => {
     mainWindow = null;
+    restoreBounds = null;
+    stopInteractionMonitor();
     contentProtected = false;
   });
 }
 
 function registerShortcuts() {
-  globalShortcut.register(SHORTCUTS.clickThrough, toggleClickThrough);
-  globalShortcut.register(SHORTCUTS.emergencyQuit, quitImmediately);
+  for (const [name, callback] of Object.entries({
+    visibility: toggleVisibility,
+    clickThrough: toggleClickThrough,
+    emergencyQuit: quitImmediately,
+  })) {
+    if (!globalShortcut.register(SHORTCUTS[name], callback)) {
+      shortcutErrors.push(SHORTCUTS[name]);
+      console.warn(`Shortcut ${SHORTCUTS[name]} is already in use. Use the tray menu.`);
+    }
+  }
 }
 
 function createTrayImage() {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <path fill="black" d="M11.6 7.2 3 16l8.6 8.8 2.8-2.8L8.5 16l5.9-6-2.8-2.8Zm8.8 0-2.8 2.8 5.9 6-5.9 6 2.8 2.8L29 16l-8.6-8.8Z"/>
-    </svg>`;
-  const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
-  const image = nativeImage.createFromDataURL(dataUrl).resize({ width: 16, height: 16 });
-  image.setTemplateImage(true);
+  // nativeImage does not consistently decode SVG across desktop platforms.
+  const image = nativeImage.createFromPath(path.join(
+    __dirname, "assets", isMac ? "trayTemplate.png" : "icon.ico",
+  ));
+  if (isMac) image.setTemplateImage(true);
   return image;
 }
 
@@ -464,6 +519,7 @@ function refreshTrayMenu() {
         label: mainWindow?.isVisible() && !mainWindow?.isMinimized()
           ? "Hide FloatCode"
           : "Show FloatCode",
+        accelerator: SHORTCUTS.visibility,
         click: toggleVisibility,
       },
       {
@@ -501,6 +557,10 @@ function createTray() {
 }
 
 function createApplicationMenu() {
+  if (!isMac) {
+    Menu.setApplicationMenu(null);
+    return;
+  }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
@@ -510,6 +570,7 @@ function createApplicationMenu() {
           { type: "separator" },
           {
             label: "Show or Hide",
+            accelerator: SHORTCUTS.visibility,
             click: toggleVisibility,
           },
           {
@@ -533,7 +594,14 @@ function createApplicationMenu() {
 
 if (hasSingleInstanceLock) app.whenReady().then(() => {
   app.setName("FloatCode");
-  app.setAsDefaultProtocolClient(PROTOCOL);
+  if (isWindows) app.setAppUserModelId("com.floatcode.app");
+  if (process.defaultApp) {
+    if (process.argv[1]) {
+      app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+    }
+  } else {
+    app.setAsDefaultProtocolClient(PROTOCOL);
+  }
   createApplicationMenu();
   createWindow();
   createTray();
