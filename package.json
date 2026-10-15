@@ -1,6 +1,6 @@
 {
   "name": "floatcode",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A transparent collaborative code editor for macOS.",
   "main": "electron/main.cjs",
   "author": "FloatCode",
@@ -70,7 +70,9 @@
         "zip"
       ],
       "artifactName": "FloatCode-${version}-${arch}.${ext}",
-      "identity": null
+      "identity": "-",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     }
   }
 }
