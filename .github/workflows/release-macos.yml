@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - windows-beta
     tags:
       - "v*"
     paths:
