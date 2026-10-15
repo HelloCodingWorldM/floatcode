@@ -37,6 +37,12 @@ import {
 } from "./collab-api.js";
 import "./styles.css";
 
+const isMac = window.floatCode.platform === "darwin";
+const isWindows = window.floatCode.platform === "win32";
+const modifierLabel = isMac ? "Command" : "Ctrl";
+const passThroughShortcut = isMac ? "⌥2" : "Alt+2";
+document.documentElement.dataset.platform = window.floatCode.platform;
+
 const STORAGE = {
   code: "floatcode.code",
   color: "floatcode.user-color",
@@ -107,6 +113,14 @@ const displayNameInput = document.querySelector("#display-name");
 const connectionStatus = document.querySelector("#connection-status");
 const connectionDot = document.querySelector("#connection-dot");
 const peerCount = document.querySelector("#peer-count");
+
+fontDecreaseButton.title = `Decrease code font size (${modifierLabel} −)`;
+fontIncreaseButton.title = `Increase code font size (${modifierLabel} +)`;
+fontSizeValue.title = `Reset code font size to 17 pixels (${modifierLabel} 0)`;
+hideButton.title = `Hide FloatCode (${isMac ? "⌥1" : "Alt+1"})`;
+windowCloseButton.title = "Hide FloatCode to the tray";
+windowCloseButton.setAttribute("aria-label", "Hide FloatCode to the tray");
+if (isWindows) windowMaximizeButton.textContent = "□";
 
 const savedLanguage = localStorage.getItem(STORAGE.language);
 let currentLanguage = languageExtensions[savedLanguage] ? savedLanguage : "python";
@@ -694,8 +708,8 @@ titlebar.addEventListener("pointerdown", async (event) => {
   titlebar.setPointerCapture(event.pointerId);
 
   const startBounds = await window.floatCode.getBounds();
-  if (!startBounds) {
-    titlebar.releasePointerCapture(event.pointerId);
+  if (!startBounds || !titlebar.hasPointerCapture(event.pointerId)) {
+    if (titlebar.hasPointerCapture(event.pointerId)) titlebar.releasePointerCapture(event.pointerId);
     return;
   }
 
@@ -733,17 +747,26 @@ titlebar.addEventListener("pointerdown", async (event) => {
   titlebar.addEventListener("pointercancel", finishMove, { once: true });
 });
 
+titlebar.addEventListener("dblclick", (event) => {
+  if (!event.target.closest("button, select, input, a")) {
+    void window.floatCode.toggleMaximizeWindow();
+  }
+});
+
 resizeHandle.addEventListener("pointerdown", async (event) => {
+  if (event.button !== 0) return;
   event.preventDefault();
+  resizeHandle.setPointerCapture(event.pointerId);
   const startBounds = await window.floatCode.getBounds();
-  if (!startBounds) return;
+  if (!startBounds || !resizeHandle.hasPointerCapture(event.pointerId)) {
+    if (resizeHandle.hasPointerCapture(event.pointerId)) resizeHandle.releasePointerCapture(event.pointerId);
+    return;
+  }
 
   const startX = event.screenX;
   const startY = event.screenY;
   let pendingSize = null;
   let resizeFrame = null;
-
-  resizeHandle.setPointerCapture(event.pointerId);
 
   const flushResize = () => {
     resizeFrame = null;
@@ -776,7 +799,7 @@ resizeHandle.addEventListener("pointerdown", async (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") collabPanel.classList.remove("open");
-  if (!event.metaKey) return;
+  if (!(isMac ? event.metaKey : event.ctrlKey) || event.altKey) return;
 
   if (event.key === "+" || event.key === "=") {
     event.preventDefault();
@@ -828,6 +851,7 @@ function applyOverlayState(state) {
   shell.classList.toggle("editing", !state.clickThrough);
   shell.classList.toggle("pinned", pinned);
   shell.classList.toggle("normal-window", !transparent);
+  shell.classList.toggle("maximized", Boolean(state.maximized));
   backgroundModeButton.textContent = transparent ? "Transparent" : "White";
   backgroundModeButton.setAttribute("aria-pressed", String(transparent));
   backgroundModeButton.title = transparent
@@ -841,8 +865,9 @@ function applyOverlayState(state) {
   passThroughButton.textContent = state.clickThrough ? "Edit mode" : "Click through";
   passThroughButton.setAttribute("aria-pressed", String(state.clickThrough));
   passThroughButton.title = state.clickThrough
-    ? "Return the code area to editing and scrolling (⌥2)"
-    : "Let clicks in the code area reach the app behind FloatCode (⌥2)";
+    ? `Return the code area to editing and scrolling (${passThroughShortcut})`
+    : `Let clicks in the code area reach the app behind FloatCode (${passThroughShortcut})`;
+  if (isWindows) windowMaximizeButton.textContent = state.maximized ? "❐" : "□";
   windowMaximizeButton.title = state.maximized
     ? "Restore FloatCode to its previous size"
     : "Maximize FloatCode";
@@ -900,12 +925,15 @@ async function initialize() {
       // Keep mouse interaction available for immediate scrolling and editing.
       // The window itself was shown inactive, so launch still does not steal focus.
       await window.floatCode.setClickThrough(false, false);
-      showToast("Edit & scroll mode · ⌥2 toggles click-through", 3400);
+      showToast(`Edit & scroll mode · ${passThroughShortcut} toggles click-through`, 3400);
     },
   });
 
   const pendingInvite = await window.floatCode.getPendingInvite();
   if (pendingInvite) await joinFromInvitation(pendingInvite);
+  if (state.shortcutErrors?.length) {
+    showToast(`Shortcut unavailable: ${state.shortcutErrors.join(", ")}. Use the tray menu.`, 7000);
+  }
 }
 
 window.floatCode.onInviteReceived((url) => void joinFromInvitation(url));

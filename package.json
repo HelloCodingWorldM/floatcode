@@ -1,7 +1,7 @@
 {
   "name": "floatcode",
-  "version": "0.4.1",
-  "description": "A transparent collaborative code editor for macOS.",
+  "version": "0.4.2",
+  "description": "A transparent collaborative code editor for macOS and Windows.",
   "main": "electron/main.cjs",
   "author": "FloatCode",
   "license": "MIT",
@@ -9,15 +9,17 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && FLOATCODE_DEV=1 electron .\"",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && node scripts/start-electron.cjs\"",
     "start": "npm run build && electron .",
     "build": "vite build",
     "check": "node --check electron/main.cjs && node --check electron/preload.cjs && node --check server/index.cjs && node --check src/auth.js && node --check src/collab-api.js && node --check src/main.js && node --check vite.config.mjs",
     "collab-server": "node server/index.cjs",
-    "collab-server:legacy": "HOST=0.0.0.0 PORT=1234 node ./node_modules/y-websocket/bin/server.cjs",
+    "collab-server:legacy": "node scripts/start-legacy.cjs",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:mac:arm64": "npm run build && electron-builder --mac --arm64",
-    "dist:mac:x64": "npm run build && electron-builder --mac --x64"
+    "dist:mac:x64": "npm run build && electron-builder --mac --x64",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "test:desktop": "node scripts/test-desktop.cjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",
@@ -70,7 +72,29 @@
         "zip"
       ],
       "artifactName": "FloatCode-${version}-${arch}.${ext}",
-      "identity": null
+      "identity": "-",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/assets/icon.ico",
+      "artifactName": "FloatCode-${version}-Windows-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   }
 }

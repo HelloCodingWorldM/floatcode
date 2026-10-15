@@ -1,20 +1,49 @@
 # FloatCode
 
-FloatCode is a movable, transparent, frameless code editor for macOS. It keeps
+FloatCode is a movable, transparent, frameless code editor for macOS and Windows. It keeps
 syntax-highlighted code visible while providing an always-visible title bar for
 moving the window and switching modes.
 
+## Download for Windows
+
+[Download the Windows 0.4.2 beta](https://github.com/HelloCodingWorldM/floatcode/releases/tag/windows-v0.4.2-beta.1).
+Choose **FloatCode-0.4.2-Windows-x64-Setup.exe** for Windows 10/11 on Intel or AMD x64.
+The installer creates desktop and Start menu shortcuts for your Windows account.
+No GitHub login, Node.js, terminal commands, or personal API keys are needed.
+Use your existing FloatCode account, or open an invitation to join as a guest.
+This beta is unsigned and may trigger a Windows SmartScreen warning.
+
+| Action | Windows shortcut |
+| --- | --- |
+| Hide / show | `Alt + 1` |
+| Edit / mouse pass-through | `Alt + 2` |
+| Emergency quit | `Alt + 3` |
+| Increase / decrease / reset code font size | `Ctrl +` / `Ctrl -` / `Ctrl 0` |
+
+The close button hides to the system tray. Use the tray's Quit action or `Alt + 3`
+to exit. Resize with the lower-right handle; maximize uses the current monitor's
+work area. Windows native edge resizing and snapping are not enabled because
+they conflict with this transparent window style. The installed app handles
+`floatcode://` guest links from a browser.
+
+To build on Windows: `npm ci`, then `npm run dist:win`.
+`npm run dev` also works in PowerShell and Command Prompt.
+The Windows release workflow runs native window/preload checks before publishing.
+Hands-on multi-monitor/DPI, input pass-through, and Mac/Windows collaboration
+testing remains necessary for this beta.
+
 ## Download for macOS
 
-[Download FloatCode 0.4.1 public beta](https://github.com/HelloCodingWorldM/floatcode/releases/tag/v0.4.1-beta.1).
+[Download FloatCode 0.4.2 public beta](https://github.com/HelloCodingWorldM/floatcode/releases/tag/v0.4.2-beta.1).
 No GitHub account is required. Open **Assets** and download the `.dmg` for your Mac:
 
-- **Apple Silicon (M-series):** `FloatCode-0.4.1-arm64.dmg`
-- **Intel:** `FloatCode-0.4.1-x64.dmg`
+- **Apple Silicon (M-series):** `FloatCode-0.4.2-arm64.dmg`
+- **Intel:** `FloatCode-0.4.2-x64.dmg`
 
 Open the disk image and drag FloatCode into Applications. The desktop download
 is preconfigured; users do not need Node.js, a terminal, or their own API keys.
-This is an unsigned, non-notarized beta, so macOS may show a security warning.
+This beta uses ad-hoc signatures, not a Developer ID certificate or Apple
+notarization, so macOS may still block it. See [Mac installation notes](docs/macos-release.md).
 
 ## Features
 
@@ -115,8 +144,8 @@ npm run dist:mac
 
 The `.dmg`, `.zip`, and `.app` output will be placed in `release/`. Supabase
 settings are embedded when `npm run dist:mac` builds the app, so configure
-`.env.local` first. This beta build is unsigned; macOS may require testers to
-right-click the app and choose **Open** on first launch. A later public release
+`.env.local` first. This beta build is ad-hoc signed; macOS may require testers to
+approve it in System Settings → Privacy & Security. A later public release
 should be signed and notarized with an Apple Developer account.
 
 Apple Silicon only:
@@ -135,6 +164,7 @@ npm run dist:mac:x64
 
 | Action | Shortcut |
 | --- | --- |
+| Hide / show | `⌥ 1` |
 | Toggle editing and mouse pass-through | `⌥ 2` |
 | Emergency quit and release the overlay | `⌥ 3` |
 | Increase font size | `⌘ +` |
