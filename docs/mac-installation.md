@@ -1,8 +1,8 @@
 # macOS 0.4.2 test build
 
-This patch only changes Mac packaging. The existing editor, shortcuts, accounts,
-and collaboration behavior are unchanged. Windows work is held until this Mac
-build has been tested successfully.
+This patch repairs Mac packaging and the collaboration service. The existing
+editor and shortcuts are unchanged. Windows work is held until this Mac build
+has been tested successfully.
 
 The 0.4.1 build explicitly skipped code signing. Version 0.4.2 applies ad-hoc
 signatures to the app and nested binaries, with the entitlements required by
