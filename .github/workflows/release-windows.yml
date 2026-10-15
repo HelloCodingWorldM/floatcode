@@ -40,6 +40,24 @@ jobs:
         run: npx electron-builder --win nsis --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Verify silent installation and registered invitation handler
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*-Setup.exe | Select-Object -First 1
+          $installed = Start-Process $installer.FullName -ArgumentList '/S' -PassThru -Wait
+          if ($installed.ExitCode -ne 0) { throw "Installer exited with $($installed.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs/floatcode/FloatCode.exe'
+          if (!(Test-Path $exe)) { throw "Installed executable missing: $exe" }
+          $handler = (Get-Item 'HKCU:\Software\Classes\floatcode\shell\open\command').GetValue('')
+          if (!$handler.Contains('FloatCode.exe') -or !$handler.Contains('%1')) { throw "Invitation handler missing" }
+          $running = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 8
+          $processes = Get-Process FloatCode -ErrorAction SilentlyContinue
+          if (!$processes) { throw "Installed app exited before opening" }
+          $window = $processes | Where-Object { $_.MainWindowHandle -ne 0 -and $_.Responding }
+          if (!$window) { throw "Installed app has no responding window" }
+          Write-Output 'PASS: per-user installation, protocol handler, and installed app startup'
+          $processes | Stop-Process -Force
       - name: Record installer checksum
         shell: pwsh
         run: |
