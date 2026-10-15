@@ -25,6 +25,7 @@ import { yCollab } from "y-codemirror.next";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
 import { setupAuth } from "./auth.js";
+import { userError } from "./user-error.js";
 import {
   createDocument,
   createInvite,
@@ -155,7 +156,7 @@ const [userColor, userColorLight] = loadUserColor();
 languageSelect.value = currentLanguage;
 serverInput.value = localStorage.getItem(STORAGE.server) || "ws://localhost:1234";
 roomInput.value = localStorage.getItem(STORAGE.room) || `float-${randomToken()}`;
-displayNameInput.value = localStorage.getItem(STORAGE.name) || `Guest ${randomToken().slice(0, 3)}`;
+displayNameInput.value = localStorage.getItem(STORAGE.name) || `访客 ${randomToken().slice(0, 3)}`;
 restoreDraftButton.hidden = !localStorage.getItem(STORAGE.preCollabBackup);
 document.querySelectorAll(".production-collab").forEach((element) => {
   element.hidden = !productionCollaborationConfigured;
@@ -165,8 +166,8 @@ document.querySelectorAll(".legacy-collab").forEach((element) => {
 });
 copyInviteButton.hidden = productionCollaborationConfigured;
 connectButton.textContent = productionCollaborationConfigured
-  ? (activeDocumentId ? "Reconnect" : "Start room")
-  : "Connect";
+  ? (activeDocumentId ? "重新连接" : "创建协作")
+  : "连接";
 
 const languageCompartment = new Compartment();
 const fontCompartment = new Compartment();
@@ -262,7 +263,7 @@ function setFontSize(nextSize) {
   editor.dispatch({
     effects: fontCompartment.reconfigure(fontTheme(fontSize, overlayState.transparent)),
   });
-  showToast(`Font ${fontSize}px`);
+  showToast(`字号 ${fontSize}px`);
 }
 
 const editor = new EditorView({
@@ -306,10 +307,10 @@ function setConnectionStatus(status) {
   shell.dataset.connection = status;
   connectionDot.dataset.status = status;
   const labels = {
-    offline: "Not connected",
-    connecting: "Connecting…",
-    connected: "Connected",
-    disconnected: "Reconnecting…",
+    offline: "未连接",
+    connecting: "正在连接…",
+    connected: "已连接",
+    disconnected: "正在重连…",
   };
   connectionStatus.textContent = labels[status] || status;
 }
@@ -338,7 +339,7 @@ function activateSharedDocument() {
   });
   bindingActive = true;
   updatePeerCount();
-  showToast(productionCollaborationConfigured ? "Joined shared document" : `Joined ${roomInput.value}`);
+  showToast(productionCollaborationConfigured ? "已加入共享文档" : `已加入 ${roomInput.value}`);
 }
 
 function disconnectCollaboration({ announce = true } = {}) {
@@ -353,34 +354,34 @@ function disconnectCollaboration({ announce = true } = {}) {
   provider = null;
   ydoc = null;
   connectButton.textContent = productionCollaborationConfigured
-    ? (activeDocumentId ? "Reconnect" : "Start room")
-    : "Connect";
+    ? (activeDocumentId ? "重新连接" : "创建协作")
+    : "连接";
   serverInput.disabled = false;
   roomInput.disabled = false;
   documentTitleInput.disabled = false;
   displayNameInput.disabled = false;
   updatePeerCount();
   setConnectionStatus("offline");
-  if (announce) showToast("Collaboration disconnected");
+  if (announce) showToast("已断开协作连接");
 }
 
 function normalizedServerUrl(value) {
   const trimmed = value.trim().replace(/\/+$/, "");
   if (!/^wss?:\/\//i.test(trimmed)) {
-    throw new Error("Server must start with ws:// or wss://");
+    throw new Error("服务器地址必须以 ws:// 或 wss:// 开头");
   }
   return trimmed;
 }
 
 function normalizedRoom(value) {
   const room = value.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
-  if (!room) throw new Error("Enter a room name");
+  if (!room) throw new Error("请输入房间名称");
   return room;
 }
 
 function connectLegacyCollaboration() {
   if (!authSession) {
-    showToast("Sign in before joining a room", 2400);
+    showToast("请先登录，再加入协作", 2400);
     return;
   }
 
@@ -392,7 +393,7 @@ function connectLegacyCollaboration() {
   try {
     const server = normalizedServerUrl(serverInput.value);
     const room = normalizedRoom(roomInput.value);
-    const displayName = displayNameInput.value.trim().slice(0, 32) || "Guest";
+    const displayName = displayNameInput.value.trim().slice(0, 32) || "访客";
 
     serverInput.value = server;
     roomInput.value = room;
@@ -417,14 +418,14 @@ function connectLegacyCollaboration() {
     });
     provider.awareness.on("change", updatePeerCount);
 
-    connectButton.textContent = "Disconnect";
+    connectButton.textContent = "断开连接";
     serverInput.disabled = true;
     roomInput.disabled = true;
     displayNameInput.disabled = true;
     setConnectionStatus("connecting");
   } catch (error) {
     setConnectionStatus("offline");
-    showToast(error.message, 2600);
+    showToast(userError(error), 2600);
   }
 }
 
@@ -438,14 +439,14 @@ function scheduleAccessRefresh(expiresIn = 300) {
       provider.params.access_token = access.websocketToken;
       scheduleAccessRefresh(access.expiresIn);
     } catch (error) {
-      showToast(error.message || "Could not refresh collaboration access", 3000);
+      showToast(userError(error, "无法刷新协作权限，请重新连接"), 3000);
     }
   }, delay);
 }
 
 function connectWithAccess(access) {
   disconnectCollaboration({ announce: false });
-  const displayName = displayNameInput.value.trim().slice(0, 32) || "Guest";
+  const displayName = displayNameInput.value.trim().slice(0, 32) || "访客";
   displayNameInput.value = displayName;
   localStorage.setItem(STORAGE.name, displayName);
 
@@ -473,7 +474,7 @@ function connectWithAccess(access) {
   });
   provider.awareness.on("change", updatePeerCount);
 
-  connectButton.textContent = "Disconnect";
+  connectButton.textContent = "断开连接";
   documentTitleInput.disabled = true;
   displayNameInput.disabled = true;
   copyInviteButton.hidden = access.role !== "owner";
@@ -483,7 +484,7 @@ function connectWithAccess(access) {
 
 async function connectProductionCollaboration() {
   if (!authSession) {
-    showToast("Sign in before starting a room", 2400);
+    showToast("请先登录，再创建协作", 2400);
     return;
   }
   if (provider) {
@@ -497,7 +498,7 @@ async function connectProductionCollaboration() {
       ? await getDocumentAccess(authSession.access_token, activeDocumentId)
       : await createDocument(
         authSession.access_token,
-        documentTitleInput.value.trim().slice(0, 80) || "Untitled code",
+        documentTitleInput.value.trim().slice(0, 80) || "未命名代码",
       );
     connectWithAccess(access);
   } catch (error) {
@@ -505,9 +506,9 @@ async function connectProductionCollaboration() {
       activeDocumentId = null;
       activeDocumentRole = null;
       localStorage.removeItem(STORAGE.documentId);
-      connectButton.textContent = "Start room";
+      connectButton.textContent = "创建协作";
     }
-    showToast(error.message, 3200);
+    showToast(userError(error), 3200);
   } finally {
     connectButton.disabled = false;
   }
@@ -536,12 +537,12 @@ async function joinFromInvitation(urlValue) {
   if (!productionCollaborationConfigured || joiningInvite || !authController) return;
   const token = invitationToken(urlValue);
   if (!token) {
-    showToast("This FloatCode invitation link is invalid", 3200);
+    showToast("此 FloatCode 邀请链接无效", 3200);
     return;
   }
 
   joiningInvite = true;
-  showToast("Opening shared document…", 4000);
+  showToast("正在打开共享文档…", 4000);
   try {
     const session = authController.getSession() || await authController.ensureAnonymousSession();
     const access = await redeemInvite(session.access_token, token);
@@ -549,7 +550,7 @@ async function joinFromInvitation(urlValue) {
     collabPanel.classList.add("open");
     await window.floatCode.consumeInvite();
   } catch (error) {
-    showToast(error.message || "Could not open this invitation", 4200);
+    showToast(userError(error, "无法打开此邀请链接"), 4200);
   } finally {
     joiningInvite = false;
   }
@@ -575,8 +576,8 @@ backgroundModeButton.addEventListener("click", async () => {
   applyOverlayState(state);
   showToast(
     nextTransparent
-      ? "Transparent background"
-      : "White background",
+      ? "透明背景"
+      : "白色背景",
     2600,
   );
 });
@@ -585,7 +586,7 @@ pinnedModeButton.addEventListener("click", async () => {
   const nextPinned = !overlayState.pinned;
   const state = await window.floatCode.setPinned(nextPinned);
   applyOverlayState(state);
-  showToast(nextPinned ? "Always on top enabled" : "Always on top disabled", 2600);
+  showToast(nextPinned ? "已开启窗口置顶" : "已取消窗口置顶", 2600);
 });
 
 collabToggle.addEventListener("click", () => {
@@ -598,7 +599,7 @@ copyInviteButton.addEventListener("click", async () => {
   try {
     if (productionCollaborationConfigured) {
       if (!provider || !activeDocumentId || activeDocumentRole !== "owner") {
-        throw new Error("Start a room before copying a guest link.");
+        throw new Error("请先创建协作，再复制邀请链接。");
       }
       if (!activeInviteLink) {
         const invitation = await createInvite(authSession.access_token, activeDocumentId, {
@@ -610,14 +611,14 @@ copyInviteButton.addEventListener("click", async () => {
         revokeInviteButton.hidden = false;
       }
       await navigator.clipboard.writeText(activeInviteLink);
-      showToast("Guest link copied · expires in 24 hours", 3000);
+      showToast("邀请链接已复制 · 24 小时内有效", 3000);
     } else {
-      const details = `FloatCode server: ${normalizedServerUrl(serverInput.value)}\nRoom: ${normalizedRoom(roomInput.value)}`;
+      const details = `FloatCode 服务器：${normalizedServerUrl(serverInput.value)}\n房间：${normalizedRoom(roomInput.value)}`;
       await navigator.clipboard.writeText(details);
-      showToast("Connection details copied");
+      showToast("连接信息已复制");
     }
   } catch (error) {
-    showToast(error.message || "Could not copy details", 2600);
+    showToast(userError(error, "复制失败，请重试"), 2600);
   }
 });
 
@@ -629,9 +630,9 @@ revokeInviteButton.addEventListener("click", async () => {
     activeInviteId = null;
     activeInviteLink = null;
     revokeInviteButton.hidden = true;
-    showToast("Guest link revoked");
+    showToast("邀请链接已撤销");
   } catch (error) {
-    showToast(error.message || "Could not revoke guest link", 3000);
+    showToast(userError(error, "无法撤销邀请链接"), 3000);
   } finally {
     revokeInviteButton.disabled = false;
   }
@@ -646,7 +647,7 @@ restoreDraftButton.addEventListener("click", () => {
   });
   localStorage.removeItem(STORAGE.preCollabBackup);
   restoreDraftButton.hidden = true;
-  showToast("Local draft restored");
+  showToast("已恢复本地草稿");
 });
 
 passThroughButton.addEventListener("click", async () => {
@@ -657,8 +658,8 @@ passThroughButton.addEventListener("click", async () => {
   applyOverlayState(state);
   showToast(
     nextClickThrough
-      ? "Code area passes clicks through · top controls stay active"
-      : "Edit & scroll mode",
+      ? "代码区域已开启鼠标穿透 · 顶部按钮仍可点击"
+      : "可编辑和滚动代码",
     3200,
   );
 });
@@ -673,7 +674,7 @@ function bindWindowControl(button, action) {
     event.stopPropagation();
     void action().catch((error) => {
       console.error("Window control failed:", error);
-      showToast("Window action failed. Please try again.", 3000);
+      showToast("窗口操作失败，请重试。", 3000);
     });
   });
 }
@@ -825,27 +826,27 @@ function applyOverlayState(state) {
   shell.classList.toggle("editing", !state.clickThrough);
   shell.classList.toggle("pinned", pinned);
   shell.classList.toggle("normal-window", !transparent);
-  backgroundModeButton.textContent = transparent ? "Transparent" : "White";
+  backgroundModeButton.textContent = transparent ? "透明" : "白底";
   backgroundModeButton.setAttribute("aria-pressed", String(transparent));
   backgroundModeButton.title = transparent
-    ? "Transparent background is on. Click for a white background"
-    : "White background is on. Click for a transparent background";
-  pinnedModeButton.textContent = pinned ? "Pinned" : "Unpinned";
+    ? "当前为透明背景，点击切换为白色背景"
+    : "当前为白色背景，点击切换为透明背景";
+  pinnedModeButton.textContent = pinned ? "置顶" : "未置顶";
   pinnedModeButton.setAttribute("aria-pressed", String(pinned));
   pinnedModeButton.title = pinned
-    ? "Always on top is enabled. Click to use normal window stacking"
-    : "Always on top is disabled. Click to keep FloatCode above other apps";
-  passThroughButton.textContent = state.clickThrough ? "Edit mode" : "Click through";
+    ? "已开启置顶，点击取消"
+    : "已取消置顶，点击让窗口始终显示在最上方";
+  passThroughButton.textContent = state.clickThrough ? "编辑模式" : "鼠标穿透";
   passThroughButton.setAttribute("aria-pressed", String(state.clickThrough));
   passThroughButton.title = state.clickThrough
-    ? "Return the code area to editing and scrolling (⌥2)"
-    : "Let clicks in the code area reach the app behind FloatCode (⌥2)";
+    ? "恢复代码编辑和滚动（⌥2）"
+    : "让代码区域的鼠标点击穿透到下方应用（⌥2）";
   windowMaximizeButton.title = state.maximized
-    ? "Restore FloatCode to its previous size"
-    : "Maximize FloatCode";
+    ? "恢复 FloatCode 原来的窗口大小"
+    : "最大化 FloatCode";
   windowMaximizeButton.setAttribute(
     "aria-label",
-    state.maximized ? "Restore FloatCode" : "Maximize FloatCode",
+    state.maximized ? "还原 FloatCode" : "最大化 FloatCode",
   );
   syncControlsInteraction();
   editor.dispatch({
@@ -890,14 +891,14 @@ async function initialize() {
         return;
       }
 
-      if (!session.user.is_anonymous && displayNameInput.value.startsWith("Guest ")) {
+      if (!session.user.is_anonymous && /^(Guest |访客 )/.test(displayNameInput.value)) {
         displayNameInput.value = session.user.email?.split("@")[0] || displayNameInput.value;
       }
 
       // Keep mouse interaction available for immediate scrolling and editing.
       // The window itself was shown inactive, so launch still does not steal focus.
       await window.floatCode.setClickThrough(false, false);
-      showToast("Edit & scroll mode · ⌥2 toggles click-through", 3400);
+      showToast("可编辑和滚动代码 · ⌥2 切换鼠标穿透", 3400);
     },
   });
 

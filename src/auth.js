@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { userError } from "./user-error.js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = (
@@ -17,8 +18,8 @@ function configured() {
 }
 
 function friendlyError(error) {
-  if (!navigator.onLine) return "You appear to be offline.";
-  return error?.message || "Something went wrong. Please try again.";
+  if (!navigator.onLine) return "网络似乎已断开，请检查网络连接。";
+  return userError(error);
 }
 
 export async function setupAuth({ onSessionChange, showToast }) {
@@ -54,8 +55,8 @@ export async function setupAuth({ onSessionChange, showToast }) {
     emailInput.disabled = pending;
     passwordInput.disabled = pending;
     submitButton.textContent = pending
-      ? "Please wait…"
-      : mode === "signin" ? "Sign in" : "Create account";
+      ? "请稍候…"
+      : mode === "signin" ? "登录" : "注册账号";
   };
 
   const setMode = (nextMode) => {
@@ -64,7 +65,7 @@ export async function setupAuth({ onSessionChange, showToast }) {
     signUpTab.setAttribute("aria-selected", String(mode === "signup"));
     signInTab.classList.toggle("active", mode === "signin");
     signUpTab.classList.toggle("active", mode === "signup");
-    submitButton.textContent = mode === "signin" ? "Sign in" : "Create account";
+    submitButton.textContent = mode === "signin" ? "登录" : "注册账号";
     passwordInput.autocomplete = mode === "signin" ? "current-password" : "new-password";
     setMessage("");
   };
@@ -77,10 +78,10 @@ export async function setupAuth({ onSessionChange, showToast }) {
     accountPanel.classList.remove("open");
 
     if (signedIn) {
-      const email = session.user.is_anonymous ? "Guest session" : session.user.email || "Account";
+      const email = session.user.is_anonymous ? "访客会话" : session.user.email || "账号";
       accountEmail.textContent = email;
       accountInitial.textContent = session.user.is_anonymous
-        ? "G"
+        ? "访"
         : email.charAt(0).toUpperCase();
     }
 
@@ -98,7 +99,7 @@ export async function setupAuth({ onSessionChange, showToast }) {
       getSession: () => null,
       configured: false,
       ensureAnonymousSession: async () => {
-        throw new Error("Supabase is not configured.");
+        throw new Error("账号服务尚未配置，请联系应用维护者。");
       },
     };
   }
@@ -116,6 +117,15 @@ export async function setupAuth({ onSessionChange, showToast }) {
   signInTab.addEventListener("click", () => setMode("signin"));
   signUpTab.addEventListener("click", () => setMode("signup"));
 
+  for (const input of [emailInput, passwordInput]) {
+    input.addEventListener("input", () => input.setCustomValidity(""));
+    input.addEventListener("invalid", () => {
+      input.setCustomValidity(input === emailInput
+        ? "请输入有效的邮箱地址。"
+        : "请输入至少 6 个字符的密码。");
+    });
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const email = emailInput.value.trim();
@@ -131,15 +141,15 @@ export async function setupAuth({ onSessionChange, showToast }) {
 
         if (data.session) {
           await renderSession(data.session);
-          showToast("Account created");
+          showToast("账号已创建");
         } else {
-          setMessage("Check your email to confirm the account, then return here to sign in.", "success");
+          setMessage("请前往邮箱确认注册，然后返回这里登录。", "success");
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         await renderSession(data.session);
-        showToast("Signed in");
+        showToast("已登录");
       }
     } catch (error) {
       setMessage(friendlyError(error), "error");
@@ -159,7 +169,7 @@ export async function setupAuth({ onSessionChange, showToast }) {
       return;
     }
     await renderSession(null);
-    showToast("Signed out");
+    showToast("已退出登录");
   });
 
   document.addEventListener("keydown", (event) => {

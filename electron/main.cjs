@@ -476,30 +476,30 @@ function refreshTrayMenu() {
     Menu.buildFromTemplate([
       {
         label: mainWindow?.isVisible() && !mainWindow?.isMinimized()
-          ? "Hide FloatCode"
-          : "Show FloatCode",
+          ? "隐藏 FloatCode"
+          : "显示 FloatCode",
         click: toggleVisibility,
       },
       {
-        label: clickThrough ? "Switch to edit mode" : "Enable mouse pass-through",
+        label: clickThrough ? "切换到编辑模式" : "开启鼠标穿透",
         accelerator: SHORTCUTS.clickThrough,
         click: toggleClickThrough,
       },
       {
-        label: "Transparent background",
+        label: "透明背景",
         type: "checkbox",
         checked: transparentMode,
         click: () => setTransparentMode(!transparentMode),
       },
       {
-        label: "Always on top",
+        label: "始终置顶",
         type: "checkbox",
         checked: pinnedMode,
         click: () => setPinnedMode(!pinnedMode),
       },
       { type: "separator" },
       {
-        label: "Quit FloatCode",
+        label: "退出 FloatCode",
         accelerator: SHORTCUTS.emergencyQuit,
         click: quitImmediately,
       },
@@ -520,28 +520,47 @@ function createApplicationMenu() {
       {
         label: app.name,
         submenu: [
-          { role: "about" },
+          { role: "about", label: "关于 FloatCode" },
           { type: "separator" },
           {
-            label: "Show or Hide",
+            label: "显示或隐藏",
             accelerator: SHORTCUTS.toggleVisibility,
             click: toggleVisibility,
           },
           {
-            label: "Toggle Mouse Pass-through",
+            label: "切换鼠标穿透",
             accelerator: SHORTCUTS.clickThrough,
             click: toggleClickThrough,
           },
           { type: "separator" },
           {
-            label: "Emergency Quit",
+            label: "立即退出",
             accelerator: SHORTCUTS.emergencyQuit,
             click: quitImmediately,
           },
         ],
       },
-      { role: "editMenu" },
-      { role: "windowMenu" },
+      {
+        label: "编辑",
+        submenu: [
+          { role: "undo", label: "撤销" },
+          { role: "redo", label: "重做" },
+          { type: "separator" },
+          { role: "cut", label: "剪切" },
+          { role: "copy", label: "复制" },
+          { role: "paste", label: "粘贴" },
+          { role: "selectAll", label: "全选" },
+        ],
+      },
+      {
+        label: "窗口",
+        submenu: [
+          { role: "minimize", label: "最小化" },
+          { role: "zoom", label: "缩放" },
+          { type: "separator" },
+          { role: "front", label: "前置全部窗口" },
+        ],
+      },
     ]),
   );
 }

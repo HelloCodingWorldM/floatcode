@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -14,165 +14,165 @@
   </head>
   <body>
     <main id="shell" class="shell editing">
-      <header id="titlebar" class="titlebar" title="Drag to move FloatCode" aria-label="Drag to move FloatCode">
-        <div class="window-controls" aria-label="Window controls">
-          <button id="window-close" class="window-control close" type="button" title="Close FloatCode" aria-label="Close FloatCode">×</button>
-          <button id="window-minimize" class="window-control minimize" type="button" title="Minimize FloatCode" aria-label="Minimize FloatCode">−</button>
-          <button id="window-maximize" class="window-control maximize" type="button" title="Maximize FloatCode" aria-label="Maximize FloatCode">+</button>
+      <header id="titlebar" class="titlebar" title="拖动以移动 FloatCode" aria-label="拖动以移动 FloatCode">
+        <div class="window-controls" aria-label="窗口控制">
+          <button id="window-close" class="window-control close" type="button" title="隐藏 FloatCode（⌥1 可重新显示）" aria-label="隐藏 FloatCode（⌥1 可重新显示）">×</button>
+          <button id="window-minimize" class="window-control minimize" type="button" title="最小化 FloatCode" aria-label="最小化 FloatCode">−</button>
+          <button id="window-maximize" class="window-control maximize" type="button" title="最大化 FloatCode" aria-label="最大化 FloatCode">+</button>
         </div>
         <span class="titlebar-grip" aria-hidden="true">⠿</span>
         <span class="titlebar-name">FloatCode</span>
-        <span class="titlebar-hint">Drag to move</span>
+        <span class="titlebar-hint">拖动窗口</span>
       </header>
       <div
         id="resize-handle"
         class="resize-handle"
-        title="Drag to resize"
-        aria-label="Drag to resize"
+        title="拖动以调整大小"
+        aria-label="拖动以调整大小"
       ></div>
 
-      <section id="auth-gate" class="auth-gate" aria-label="FloatCode account">
+      <section id="auth-gate" class="auth-gate" aria-label="FloatCode 账号">
         <div id="auth-card" class="auth-card">
           <div class="brand-mark" aria-hidden="true">&lt;/&gt;</div>
           <h1>FloatCode</h1>
-          <p class="auth-subtitle">A quiet, collaborative code layer for your desktop.</p>
-          <p class="guest-hint">Invited guests open the shared link—no email registration required.</p>
+          <p class="auth-subtitle">透明悬浮，随时与同伴一起编写代码。</p>
+          <p class="guest-hint">受邀同伴打开邀请链接即可加入，无需注册邮箱。</p>
 
           <div id="auth-config-notice" class="config-notice" hidden>
-            <strong>Connect Supabase to continue</strong>
-            <p>Copy <code>.env.example</code> to <code>.env.local</code>, add your project URL and publishable key, then restart FloatCode.</p>
+            <strong>账号服务尚未配置</strong>
+            <p>请下载已配置好的 FloatCode 安装包，或联系应用维护者。</p>
           </div>
 
           <form id="auth-form">
-            <div class="auth-tabs" role="tablist" aria-label="Account action">
-              <button id="auth-tab-signin" class="active" type="button" role="tab" aria-selected="true">Sign in</button>
-              <button id="auth-tab-signup" type="button" role="tab" aria-selected="false">Create account</button>
+            <div class="auth-tabs" role="tablist" aria-label="账号操作">
+              <button id="auth-tab-signin" class="active" type="button" role="tab" aria-selected="true">登录</button>
+              <button id="auth-tab-signup" type="button" role="tab" aria-selected="false">注册账号</button>
             </div>
 
             <label>
-              Email
+              邮箱
               <input id="auth-email" type="email" autocomplete="email" required />
             </label>
             <label>
-              Password
+              密码
               <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required />
             </label>
-            <button id="auth-submit" class="auth-submit" type="submit">Sign in</button>
+            <button id="auth-submit" class="auth-submit" type="submit">登录</button>
             <p id="auth-message" class="auth-message" role="status" hidden></p>
           </form>
         </div>
       </section>
 
-      <nav class="hover-tools" aria-label="FloatCode controls">
-        <label class="sr-only" for="language">Language</label>
-        <select id="language" title="Syntax language">
+      <nav class="hover-tools" aria-label="FloatCode 工具栏">
+        <label class="sr-only" for="language">编程语言</label>
+        <select id="language" title="代码语言">
           <option value="python">Python</option>
           <option value="javascript">JavaScript / TypeScript</option>
           <option value="java">Java</option>
           <option value="cpp">C / C++</option>
         </select>
-        <div class="font-size-control" role="group" aria-label="Code font size">
+        <div class="font-size-control" role="group" aria-label="代码字号">
           <button
             id="font-decrease"
             class="font-size-button"
             type="button"
-            title="Decrease code font size (Command −)"
-            aria-label="Decrease code font size"
+            title="缩小字号（Command −）"
+            aria-label="缩小字号"
           >−</button>
           <button
             id="font-size-value"
             type="button"
-            title="Reset code font size to 17 pixels (Command 0)"
-            aria-label="Reset code font size to 17 pixels"
+            title="恢复默认字号 17（Command 0）"
+            aria-label="恢复默认字号 17"
           >17</button>
           <button
             id="font-increase"
             class="font-size-button"
             type="button"
-            title="Increase code font size (Command +)"
-            aria-label="Increase code font size"
+            title="放大字号（Command +）"
+            aria-label="放大字号"
           >+</button>
         </div>
         <button
           id="background-mode"
           type="button"
-          title="Switch between transparent and white backgrounds"
+          title="切换透明或白色背景"
           aria-pressed="true"
         >
-          Transparent
+          透明
         </button>
         <button
           id="pinned-mode"
           type="button"
-          title="Keep FloatCode above other apps"
+          title="让 FloatCode 始终显示在其他窗口上方"
           aria-pressed="true"
         >
-          Pinned
+          置顶
         </button>
-        <button id="collab-toggle" type="button" title="Collaboration settings">
+        <button id="collab-toggle" type="button" title="协作设置">
           <span id="connection-dot" class="connection-dot"></span>
-          Share
+          协作
           <span id="peer-count" class="peer-count">1</span>
         </button>
-        <button id="account-toggle" class="account-toggle" type="button" title="Account" hidden>
+        <button id="account-toggle" class="account-toggle" type="button" title="账号" hidden>
           <span id="account-initial">A</span>
         </button>
-        <button id="pass-through" type="button" title="Let clicks reach the app behind FloatCode (⌥2)">
-          Click through
+        <button id="pass-through" type="button" title="让鼠标点击穿透到下方应用（⌥2）">
+          鼠标穿透
         </button>
-        <button id="hide-window" type="button" title="Hide FloatCode">
-          Hide
+        <button id="hide-window" type="button" title="隐藏 FloatCode（⌥1 可重新显示）">
+          隐藏
         </button>
       </nav>
 
-      <section id="account-panel" class="account-panel" aria-label="Account">
+      <section id="account-panel" class="account-panel" aria-label="账号">
         <div class="panel-heading">
           <div>
-            <strong>Signed in</strong>
+            <strong>已登录</strong>
             <span id="account-email"></span>
           </div>
-          <button id="close-account" class="icon-button" type="button" aria-label="Close">×</button>
+          <button id="close-account" class="icon-button" type="button" aria-label="关闭">×</button>
         </div>
-        <button id="sign-out" type="button">Sign out</button>
+        <button id="sign-out" type="button">退出登录</button>
       </section>
 
-      <section id="collab-panel" class="collab-panel" aria-label="Collaboration settings">
+      <section id="collab-panel" class="collab-panel" aria-label="协作设置">
         <div class="panel-heading">
           <div>
-            <strong>Live collaboration</strong>
-            <span id="connection-status">Not connected</span>
+            <strong>实时协作</strong>
+            <span id="connection-status">未连接</span>
           </div>
-          <button id="close-collab" class="icon-button" type="button" aria-label="Close">×</button>
+          <button id="close-collab" class="icon-button" type="button" aria-label="关闭">×</button>
         </div>
 
         <label>
-          Your name
+          你的昵称
           <input id="display-name" autocomplete="off" maxlength="32" />
         </label>
         <label class="production-collab" hidden>
-          Document title
-          <input id="document-title" autocomplete="off" maxlength="80" value="Untitled code" />
+          文档标题
+          <input id="document-title" autocomplete="off" maxlength="80" value="未命名代码" />
         </label>
         <label class="legacy-collab">
-          Server
+          服务器
           <input id="server-url" autocomplete="off" spellcheck="false" />
         </label>
         <label class="legacy-collab">
-          Room
+          房间
           <input id="room-name" autocomplete="off" spellcheck="false" maxlength="64" />
         </label>
 
         <div class="panel-actions">
-          <button id="connect-collab" class="primary" type="button">Connect</button>
-          <button id="copy-invite" type="button">Copy guest link</button>
-          <button id="revoke-invite" type="button" hidden>Revoke link</button>
-          <button id="restore-draft" type="button" hidden>Restore draft</button>
+          <button id="connect-collab" class="primary" type="button">连接</button>
+          <button id="copy-invite" type="button">复制邀请链接</button>
+          <button id="revoke-invite" type="button" hidden>撤销邀请</button>
+          <button id="restore-draft" type="button" hidden>恢复草稿</button>
         </div>
-        <p class="panel-note production-collab" hidden>Guest links expire after 24 hours and can be revoked from the service database. Guests do not need an email account.</p>
-        <p class="panel-note legacy-collab">Development mode only: everyone enters the same server and room.</p>
+        <p class="panel-note production-collab" hidden>邀请链接 24 小时内有效，可点击“撤销邀请”使其失效。受邀同伴无需注册邮箱。</p>
+        <p class="panel-note legacy-collab">仅开发模式使用：所有人填写相同的服务器和房间。</p>
       </section>
 
-      <section id="editor" aria-label="Code editor"></section>
+      <section id="editor" aria-label="代码编辑器"></section>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </main>
 

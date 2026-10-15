@@ -1,3 +1,5 @@
+import { userError } from "./user-error.js";
+
 const apiUrl = String(import.meta.env.VITE_FLOATCODE_API_URL || "").trim().replace(/\/+$/, "");
 const joinUrl = String(import.meta.env.VITE_FLOATCODE_JOIN_URL || "").trim().replace(/\/+$/, "");
 
@@ -7,9 +9,9 @@ export const productionCollaborationConfigured = Boolean(
 
 async function request(path, accessToken, options = {}) {
   if (!productionCollaborationConfigured) {
-    throw new Error("The production collaboration service is not configured.");
+    throw new Error("协作服务尚未配置，请联系应用维护者。");
   }
-  if (!accessToken) throw new Error("Sign in is required.");
+  if (!accessToken) throw new Error("请先登录。");
 
   const response = await fetch(`${apiUrl}${path}`, {
     method: options.method || "POST",
@@ -22,12 +24,12 @@ async function request(path, accessToken, options = {}) {
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `Collaboration service error (${response.status}).`);
+    throw new Error(userError({ ...payload?.error, status: response.status }, `协作服务暂时不可用（${response.status}），请稍后重试。`));
   }
   return payload;
 }
 
-export function createDocument(accessToken, title = "Untitled code") {
+export function createDocument(accessToken, title = "未命名代码") {
   return request("/api/documents", accessToken, { body: { title } });
 }
 
