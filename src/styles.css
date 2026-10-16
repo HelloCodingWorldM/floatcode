@@ -439,6 +439,10 @@ body {
   padding: 0 7px;
 }
 
+.hover-tools #line-spacing {
+  width: 76px;
+}
+
 .hover-tools button {
   padding: 0 9px;
   cursor: pointer;

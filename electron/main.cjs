@@ -29,6 +29,9 @@ let authLocked = true;
 let quitting = false;
 let pendingInviteUrl = null;
 let interactionMonitor = null;
+let interactiveZoneHeight = 82;
+
+const PIN_LEVEL = process.platform === "darwin" ? "screen-saver" : "pop-up-menu";
 
 const PROTOCOL = "floatcode";
 const SESSION_KEY_PATTERN = /^sb-[a-z0-9]+-auth-token$/i;
@@ -155,6 +158,8 @@ function currentState() {
     pinned: pinnedMode,
     contentProtected,
     authLocked,
+    controlsInteractive,
+    interactiveZoneHeight,
     visible: Boolean(mainWindow && mainWindow.isVisible()),
     minimized: Boolean(mainWindow && mainWindow.isMinimized()),
     maximized: Boolean(mainWindow && mainWindow.isMaximized()),
@@ -172,9 +177,9 @@ function applyPinnedMode() {
 
   try {
     if (pinnedMode) {
-      // pop-up-menu is stronger than the default floating level while still
-      // staying below macOS system dialogs.
-      mainWindow.setAlwaysOnTop(true, "pop-up-menu");
+      // screen-saver is the highest documented macOS window level and remains
+      // visible above ordinary windows as well as apps in a fullscreen Space.
+      mainWindow.setAlwaysOnTop(true, PIN_LEVEL, process.platform === "darwin" ? 1 : 0);
       mainWindow.moveTop();
     } else {
       mainWindow.setAlwaysOnTop(false);
@@ -187,8 +192,6 @@ function applyPinnedMode() {
 
 function configureWorkspaces() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  // This API can hide/show the native app. Never repeat it on blur or show.
-  if (mainWindow.isVisibleOnAllWorkspaces() === pinnedMode) return;
   try {
     mainWindow.setVisibleOnAllWorkspaces(pinnedMode, {
       visibleOnFullScreen: pinnedMode,
@@ -201,7 +204,6 @@ function configureWorkspaces() {
 function protectAndConfigureWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
 
-  configureWorkspaces();
   applyPinnedMode();
 
   // Best-effort OS content protection. On recent macOS versions, apps using
@@ -225,6 +227,7 @@ function setTransparentMode(enabled) {
 function setPinnedMode(enabled) {
   pinnedMode = Boolean(enabled);
   configureWorkspaces();
+  if (pinnedMode && mainWindow && !mainWindow.isDestroyed()) mainWindow.showInactive();
   applyPinnedMode();
   broadcastState();
   return currentState();
@@ -267,7 +270,7 @@ function cursorIsInInteractiveZone() {
   const bounds = mainWindow.getBounds();
   const insideHorizontally = point.x >= bounds.x && point.x < bounds.x + bounds.width;
   const localY = point.y - bounds.y;
-  return insideHorizontally && localY >= 0 && localY <= bounds.height / 2;
+  return insideHorizontally && localY >= 0 && localY <= interactiveZoneHeight;
 }
 
 function refreshInteractionFromCursor() {
@@ -298,6 +301,16 @@ function applyMouseInteraction() {
 
 function setControlsInteractive(_enabled) {
   refreshInteractionFromCursor();
+  return currentState();
+}
+
+function setInteractiveZoneHeight(height) {
+  const nextHeight = Math.round(Number(height));
+  if (Number.isFinite(nextHeight)) {
+    interactiveZoneHeight = Math.max(44, Math.min(240, nextHeight));
+    refreshInteractionFromCursor();
+    broadcastState();
+  }
   return currentState();
 }
 
@@ -426,6 +439,7 @@ function createWindow() {
 
   mainWindow.once("ready-to-show", () => {
     // FloatCode appears without interrupting whatever the user is typing in.
+    configureWorkspaces();
     mainWindow.showInactive();
     applyPinnedMode();
     broadcastState();
@@ -434,6 +448,15 @@ function createWindow() {
   mainWindow.on("show", () => {
     applyPinnedMode();
     broadcastState();
+  });
+  mainWindow.on("blur", () => {
+    // A newly focused browser window must not demote a pinned overlay.
+    if (pinnedMode && mainWindow.isVisible()) applyPinnedMode();
+  });
+  mainWindow.on("always-on-top-changed", (_event, isAlwaysOnTop) => {
+    if (pinnedMode && !isAlwaysOnTop && mainWindow.isVisible()) {
+      setImmediate(applyPinnedMode);
+    }
   });
   mainWindow.on("hide", broadcastState);
   mainWindow.on("minimize", broadcastState);
@@ -599,6 +622,9 @@ ipcMain.handle("overlay:set-click-through", (_event, enabled, focusWhenEditable)
 );
 ipcMain.handle("overlay:set-controls-interactive", (_event, enabled) =>
   setControlsInteractive(enabled),
+);
+ipcMain.handle("overlay:set-interactive-zone-height", (_event, height) =>
+  setInteractiveZoneHeight(height),
 );
 ipcMain.handle("overlay:set-transparent", (_event, enabled) =>
   setTransparentMode(enabled),

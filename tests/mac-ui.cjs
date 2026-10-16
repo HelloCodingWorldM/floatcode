@@ -5,10 +5,18 @@ const { execFileSync } = require('node:child_process');
 app.setPath('userData', process.env.FLOATCODE_TEST_USER_DATA);
 app.setAsDefaultProtocolClient = () => true;
 let workspaceChanges = 0;
+const workspaceCalls = [];
+const alwaysOnTopCalls = [];
 const originalWorkspaces = BrowserWindow.prototype.setVisibleOnAllWorkspaces;
 BrowserWindow.prototype.setVisibleOnAllWorkspaces = function (...args) {
   workspaceChanges++;
+  workspaceCalls.push(args);
   return originalWorkspaces.apply(this, args);
+};
+const originalAlwaysOnTop = BrowserWindow.prototype.setAlwaysOnTop;
+BrowserWindow.prototype.setAlwaysOnTop = function (...args) {
+  alwaysOnTopCalls.push(args);
+  return originalAlwaysOnTop.apply(this, args);
 };
 require('../electron/main.cjs');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -25,6 +33,10 @@ app.whenReady().then(async () => {
     assert.ok(await js('Boolean(document.querySelector(".cm-content"))'));
     assert.equal(await js('typeof window.require'), 'undefined');
     const initialWorkspaces = workspaceChanges;
+    assert.ok(workspaceCalls.some(args => args[0] === true && args[1]?.visibleOnFullScreen === true),
+      'Pinned overlay is visible in fullscreen Spaces');
+    assert.ok(alwaysOnTopCalls.some(args => args[0] === true && args[1] === 'screen-saver'),
+      'Pinned overlay uses the fullscreen-safe macOS window level');
     win.emit('blur'); win.emit('blur');
     await delay(100);
     assert.equal(workspaceChanges, initialWorkspaces, 'Blur must not transform/hide/show the native app');
@@ -78,6 +90,16 @@ app.whenReady().then(async () => {
     assert.equal(win.isVisible(), false, 'Keyboard close works');
     await js('window.floatCode.toggleVisibility()');
     assert.ok(globalShortcut.isRegistered('Alt+1'), 'Show/hide recovery shortcut registered');
+
+    const defaultSpacing = await js('document.querySelector("#line-spacing").value');
+    assert.equal(defaultSpacing, '1.6');
+    const firstHeight = (await js('window.floatCode.getState()')).interactiveZoneHeight;
+    assert.ok(firstHeight >= 80 && firstHeight <= 84, 'Click-through exception is only three default code rows');
+    await js('document.querySelector("#line-spacing").value = "2"; document.querySelector("#line-spacing").dispatchEvent(new Event("change"))');
+    await delay(100);
+    assert.equal(await js('getComputedStyle(document.querySelector(".cm-scroller")).lineHeight'), '34px');
+    assert.equal((await js('window.floatCode.getState()')).interactiveZoneHeight, 102);
+    assert.equal(await js('localStorage.getItem("floatcode.line-spacing")'), '2');
 
     for (const transparent of [true, false]) {
       await js(`window.floatCode.setTransparent(${transparent})`);

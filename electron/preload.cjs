@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("floatCode", {
   toggleClickThrough: () => ipcRenderer.invoke("overlay:toggle-click-through"),
   setControlsInteractive: (enabled) =>
     ipcRenderer.invoke("overlay:set-controls-interactive", Boolean(enabled)),
+  setInteractiveZoneHeight: (height) =>
+    ipcRenderer.invoke("overlay:set-interactive-zone-height", Number(height)),
   setTransparent: (enabled) =>
     ipcRenderer.invoke("overlay:set-transparent", Boolean(enabled)),
   setPinned: (enabled) =>

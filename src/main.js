@@ -42,6 +42,7 @@ const STORAGE = {
   code: "floatcode.code",
   color: "floatcode.user-color",
   fontSize: "floatcode.font-size",
+  lineSpacing: "floatcode.line-spacing",
   transparent: "floatcode.transparent",
   pinned: "floatcode.pinned",
   language: "floatcode.language",
@@ -88,6 +89,7 @@ const languageSelect = document.querySelector("#language");
 const fontDecreaseButton = document.querySelector("#font-decrease");
 const fontIncreaseButton = document.querySelector("#font-increase");
 const fontSizeValue = document.querySelector("#font-size-value");
+const lineSpacingSelect = document.querySelector("#line-spacing");
 const backgroundModeButton = document.querySelector("#background-mode");
 const pinnedModeButton = document.querySelector("#pinned-mode");
 const passThroughButton = document.querySelector("#pass-through");
@@ -116,6 +118,10 @@ const parsedFontSize = Number(storedFontSize);
 let fontSize = storedFontSize !== null && Number.isFinite(parsedFontSize)
   ? Math.min(36, Math.max(11, Math.round(parsedFontSize)))
   : 17;
+const storedLineSpacing = Number(localStorage.getItem(STORAGE.lineSpacing));
+let lineSpacing = [1.2, 1.4, 1.6, 1.8, 2].includes(storedLineSpacing)
+  ? storedLineSpacing
+  : 1.6;
 let saveTimer = null;
 let toastTimer = null;
 let pointerOnControls = false;
@@ -155,6 +161,7 @@ function loadUserColor() {
 
 const [userColor, userColorLight] = loadUserColor();
 languageSelect.value = currentLanguage;
+lineSpacingSelect.value = String(lineSpacing);
 serverInput.value = localStorage.getItem(STORAGE.server) || "ws://localhost:1234";
 roomInput.value = localStorage.getItem(STORAGE.room) || `float-${randomToken()}`;
 displayNameInput.value = localStorage.getItem(STORAGE.name) || `访客 ${randomToken().slice(0, 3)}`;
@@ -175,7 +182,7 @@ const fontCompartment = new Compartment();
 const highlightCompartment = new Compartment();
 const collaborationCompartment = new Compartment();
 
-function fontTheme(size, transparent = overlayState.transparent) {
+function fontTheme(size, transparent = overlayState.transparent, spacing = lineSpacing) {
   // Preserve the original bright syntax palette over dark desktop surfaces.
   // Background mode changes contrast, never adds text shadows.
   const light = !transparent;
@@ -192,7 +199,7 @@ function fontTheme(size, transparent = overlayState.transparent) {
       backgroundColor: transparent ? "transparent" : "#ffffff",
       fontFamily:
         '\"SFMono-Regular\", \"SF Mono\", Menlo, Monaco, Consolas, monospace',
-      lineHeight: "1.58",
+      lineHeight: String(spacing),
     },
     ".cm-content": {
       padding: "56px 24px 28px",
@@ -264,9 +271,34 @@ function setFontSize(nextSize) {
   fontDecreaseButton.disabled = fontSize <= 11;
   fontIncreaseButton.disabled = fontSize >= 36;
   editor.dispatch({
-    effects: fontCompartment.reconfigure(fontTheme(fontSize, overlayState.transparent)),
+    effects: fontCompartment.reconfigure(fontTheme(fontSize, overlayState.transparent, lineSpacing)),
   });
+  syncInteractiveZoneHeight();
   showToast(`字号 ${fontSize}px`);
+}
+
+function syncInteractiveZoneHeight() {
+  const computedLineHeight = Number.parseFloat(getComputedStyle(editor.contentDOM).lineHeight);
+  const lineHeight = Number.isFinite(computedLineHeight)
+    ? computedLineHeight
+    : fontSize * lineSpacing;
+  // In mouse-through mode, only the top strip equal to three code rows stays interactive.
+  void window.floatCode.setInteractiveZoneHeight(Math.ceil(lineHeight * 3));
+}
+
+function setLineSpacing(nextSpacing) {
+  const parsedSpacing = Number(nextSpacing);
+  if (![1.2, 1.4, 1.6, 1.8, 2].includes(parsedSpacing)) return;
+  lineSpacing = parsedSpacing;
+  lineSpacingSelect.value = String(lineSpacing);
+  localStorage.setItem(STORAGE.lineSpacing, String(lineSpacing));
+  editor.dispatch({
+    effects: fontCompartment.reconfigure(
+      fontTheme(fontSize, overlayState.transparent, lineSpacing),
+    ),
+  });
+  syncInteractiveZoneHeight();
+  showToast(`行距 ${lineSpacing.toFixed(1)}`);
 }
 
 const editor = new EditorView({
@@ -285,7 +317,7 @@ const editor = new EditorView({
       indentOnInput(),
       highlightActiveLine(),
       languageCompartment.of(languageExtensions[currentLanguage]),
-      fontCompartment.of(fontTheme(fontSize, overlayState.transparent)),
+      fontCompartment.of(fontTheme(fontSize, overlayState.transparent, lineSpacing)),
       highlightCompartment.of(highlightTheme(overlayState.transparent)),
       collaborationCompartment.of([]),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -300,6 +332,7 @@ const editor = new EditorView({
 fontSizeValue.textContent = String(fontSize);
 fontDecreaseButton.disabled = fontSize <= 11;
 fontIncreaseButton.disabled = fontSize >= 36;
+syncInteractiveZoneHeight();
 
 function updatePeerCount() {
   const count = provider ? provider.awareness.getStates().size : 1;
@@ -572,6 +605,7 @@ languageSelect.addEventListener("change", () => {
 fontDecreaseButton.addEventListener("click", () => setFontSize(fontSize - 1));
 fontIncreaseButton.addEventListener("click", () => setFontSize(fontSize + 1));
 fontSizeValue.addEventListener("click", () => setFontSize(17));
+lineSpacingSelect.addEventListener("change", () => setLineSpacing(lineSpacingSelect.value));
 
 backgroundModeButton.addEventListener("click", async () => {
   const nextTransparent = !overlayState.transparent;
@@ -798,7 +832,7 @@ function isOverlayControl(target) {
 }
 
 function isUpperScrollZone(event) {
-  return event.clientY >= 44 && event.clientY <= window.innerHeight / 2;
+  return event.clientY >= 0 && event.clientY <= fontSize * lineSpacing * 3;
 }
 
 function syncControlsInteraction() {
@@ -854,7 +888,7 @@ function applyOverlayState(state) {
   syncControlsInteraction();
   editor.dispatch({
     effects: [
-      fontCompartment.reconfigure(fontTheme(fontSize, transparent)),
+      fontCompartment.reconfigure(fontTheme(fontSize, transparent, lineSpacing)),
       highlightCompartment.reconfigure(highlightTheme(transparent)),
     ],
   });
@@ -875,6 +909,7 @@ async function initialize() {
     state = await window.floatCode.setTransparent(savedTransparent !== "false");
   }
   applyOverlayState(state);
+  syncInteractiveZoneHeight();
 
   authController = await setupAuth({
     showToast,
