@@ -449,10 +449,6 @@ function createWindow() {
     applyPinnedMode();
     broadcastState();
   });
-  mainWindow.on("blur", () => {
-    // A newly focused browser window must not demote a pinned overlay.
-    if (pinnedMode && mainWindow.isVisible()) applyPinnedMode();
-  });
   mainWindow.on("always-on-top-changed", (_event, isAlwaysOnTop) => {
     if (pinnedMode && !isAlwaysOnTop && mainWindow.isVisible()) {
       setImmediate(applyPinnedMode);
