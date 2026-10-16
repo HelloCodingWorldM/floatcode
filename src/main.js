@@ -9,10 +9,11 @@ import {
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import {
   drawSelection,
+  Decoration,
   dropCursor,
   EditorView,
   highlightActiveLine,
@@ -43,6 +44,7 @@ const STORAGE = {
   color: "floatcode.user-color",
   fontSize: "floatcode.font-size",
   lineSpacing: "floatcode.line-spacing",
+  highlights: "floatcode.highlights",
   transparent: "floatcode.transparent",
   pinned: "floatcode.pinned",
   language: "floatcode.language",
@@ -90,6 +92,7 @@ const fontDecreaseButton = document.querySelector("#font-decrease");
 const fontIncreaseButton = document.querySelector("#font-increase");
 const fontSizeValue = document.querySelector("#font-size-value");
 const lineSpacingSelect = document.querySelector("#line-spacing");
+const highlightSelect = document.querySelector("#highlight-color");
 const backgroundModeButton = document.querySelector("#background-mode");
 const pinnedModeButton = document.querySelector("#pinned-mode");
 const passThroughButton = document.querySelector("#pass-through");
@@ -181,6 +184,70 @@ const languageCompartment = new Compartment();
 const fontCompartment = new Compartment();
 const highlightCompartment = new Compartment();
 const collaborationCompartment = new Compartment();
+
+const highlightColors = new Set(["yellow", "green", "blue", "pink", "purple"]);
+const setLineHighlightEffect = StateEffect.define({
+  map(value, changes) {
+    return {
+      ...value,
+      from: changes.mapPos(value.from),
+      to: changes.mapPos(value.to),
+    };
+  },
+});
+
+const lineHighlightField = StateField.define({
+  create() {
+    return Decoration.none;
+  },
+  update(highlights, transaction) {
+    let next = highlights.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(setLineHighlightEffect)) continue;
+      const { from, to, color } = effect.value;
+      const startLine = transaction.state.doc.lineAt(Math.min(from, to));
+      const finalPosition = from === to ? to : Math.max(Math.min(from, to), Math.max(from, to) - 1);
+      const endLine = transaction.state.doc.lineAt(finalPosition);
+      next = next.update({
+        filter: (position) => position < startLine.from || position > endLine.from,
+      });
+      if (!highlightColors.has(color)) continue;
+      const additions = [];
+      for (let lineNumber = startLine.number; lineNumber <= endLine.number; lineNumber += 1) {
+        const line = transaction.state.doc.line(lineNumber);
+        additions.push(Decoration.line({
+          attributes: { class: `cm-manual-highlight cm-highlight-${color}` },
+        }).range(line.from));
+      }
+      next = next.update({ add: additions, sort: true });
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+function savedHighlights() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE.highlights) || "[]");
+    return Array.isArray(saved)
+      ? saved.filter((item) => Number.isInteger(item?.from) && highlightColors.has(item?.color))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistHighlights(state) {
+  const saved = [];
+  const iterator = state.field(lineHighlightField).iter();
+  while (iterator.value) {
+    const className = iterator.value.spec.attributes?.class || "";
+    const color = [...highlightColors].find((candidate) => className.includes(`cm-highlight-${candidate}`));
+    if (color) saved.push({ from: iterator.from, color });
+    iterator.next();
+  }
+  localStorage.setItem(STORAGE.highlights, JSON.stringify(saved));
+}
 
 function fontTheme(size, transparent = overlayState.transparent, spacing = lineSpacing) {
   // Preserve the original bright syntax palette over dark desktop surfaces.
@@ -319,11 +386,16 @@ const editor = new EditorView({
       languageCompartment.of(languageExtensions[currentLanguage]),
       fontCompartment.of(fontTheme(fontSize, overlayState.transparent, lineSpacing)),
       highlightCompartment.of(highlightTheme(overlayState.transparent)),
+      lineHighlightField,
       collaborationCompartment.of([]),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) scheduleSave(update.state.doc.toString());
+        if (update.docChanged || update.transactions.some((transaction) =>
+          transaction.effects.some((effect) => effect.is(setLineHighlightEffect)))) {
+          persistHighlights(update.state);
+        }
       }),
     ],
   }),
@@ -333,6 +405,22 @@ fontSizeValue.textContent = String(fontSize);
 fontDecreaseButton.disabled = fontSize <= 11;
 fontIncreaseButton.disabled = fontSize >= 36;
 syncInteractiveZoneHeight();
+for (const saved of savedHighlights()) {
+  if (saved.from > editor.state.doc.length) continue;
+  editor.dispatch({
+    effects: setLineHighlightEffect.of({ from: saved.from, to: saved.from, color: saved.color }),
+  });
+}
+
+function setSelectionHighlight(color) {
+  const selection = editor.state.selection.main;
+  const from = Math.min(selection.from, selection.to);
+  const to = Math.max(selection.from, selection.to);
+  editor.dispatch({ effects: setLineHighlightEffect.of({ from, to, color }) });
+  highlightSelect.value = "";
+  if (!overlayState.clickThrough) editor.focus();
+  showToast(color === "clear" ? "已清除所选行高亮" : "已高亮所选行");
+}
 
 function updatePeerCount() {
   const count = provider ? provider.awareness.getStates().size : 1;
@@ -606,6 +694,9 @@ fontDecreaseButton.addEventListener("click", () => setFontSize(fontSize - 1));
 fontIncreaseButton.addEventListener("click", () => setFontSize(fontSize + 1));
 fontSizeValue.addEventListener("click", () => setFontSize(17));
 lineSpacingSelect.addEventListener("change", () => setLineSpacing(lineSpacingSelect.value));
+highlightSelect.addEventListener("change", () => {
+  if (highlightSelect.value) setSelectionHighlight(highlightSelect.value);
+});
 
 backgroundModeButton.addEventListener("click", async () => {
   const nextTransparent = !overlayState.transparent;

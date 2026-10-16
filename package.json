@@ -1,6 +1,6 @@
 {
   "name": "floatcode",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "A transparent collaborative code editor for macOS.",
   "main": "electron/main.cjs",
   "author": "FloatCode",

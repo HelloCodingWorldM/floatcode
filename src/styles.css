@@ -443,6 +443,40 @@ body {
   width: 76px;
 }
 
+.hover-tools #highlight-color {
+  width: 68px;
+}
+
+#editor .cm-line.cm-manual-highlight {
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+#editor .cm-line.cm-highlight-yellow {
+  background-image: linear-gradient(90deg, rgba(250, 204, 21, 0.28), rgba(250, 204, 21, 0.18) 94%, transparent) !important;
+  box-shadow: inset 3px 0 rgba(250, 204, 21, 0.75);
+}
+
+#editor .cm-line.cm-highlight-green {
+  background-image: linear-gradient(90deg, rgba(74, 222, 128, 0.24), rgba(74, 222, 128, 0.15) 94%, transparent) !important;
+  box-shadow: inset 3px 0 rgba(74, 222, 128, 0.7);
+}
+
+#editor .cm-line.cm-highlight-blue {
+  background-image: linear-gradient(90deg, rgba(96, 165, 250, 0.26), rgba(96, 165, 250, 0.16) 94%, transparent) !important;
+  box-shadow: inset 3px 0 rgba(96, 165, 250, 0.72);
+}
+
+#editor .cm-line.cm-highlight-pink {
+  background-image: linear-gradient(90deg, rgba(244, 114, 182, 0.24), rgba(244, 114, 182, 0.15) 94%, transparent) !important;
+  box-shadow: inset 3px 0 rgba(244, 114, 182, 0.7);
+}
+
+#editor .cm-line.cm-highlight-purple {
+  background-image: linear-gradient(90deg, rgba(192, 132, 252, 0.25), rgba(192, 132, 252, 0.16) 94%, transparent) !important;
+  box-shadow: inset 3px 0 rgba(192, 132, 252, 0.72);
+}
+
 .hover-tools button {
   padding: 0 9px;
   cursor: pointer;

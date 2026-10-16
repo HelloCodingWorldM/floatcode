@@ -101,6 +101,32 @@ app.whenReady().then(async () => {
     assert.equal((await js('window.floatCode.getState()')).interactiveZoneHeight, 102);
     assert.equal(await js('localStorage.getItem("floatcode.line-spacing")'), '2');
 
+    assert.equal(await js('document.querySelector("#highlight-color").options.length'), 7);
+    await js(`(() => {
+      const select = document.querySelector('#highlight-color');
+      select.value = 'yellow';
+      select.dispatchEvent(new Event('change'));
+    })()`);
+    await delay(100);
+    const highlighted = await js(`[...document.querySelectorAll('.cm-line.cm-highlight-yellow')].map(line => ({
+      text: line.textContent,
+      color: getComputedStyle(line).color,
+      background: getComputedStyle(line).backgroundImage,
+      opacity: getComputedStyle(line).opacity,
+    }))`);
+    assert.equal(highlighted.length, 1, 'The current row receives line highlighting without a selection');
+    assert.ok(highlighted.every(line => line.text.length > 0 && line.background !== 'none' && line.opacity === '1'),
+      'Highlight remains behind fully opaque code text');
+    assert.equal(JSON.parse(await js('localStorage.getItem("floatcode.highlights")')).length, 1,
+      'Highlights are remembered locally');
+    await js(`(() => {
+      const select = document.querySelector('#highlight-color');
+      select.value = 'clear';
+      select.dispatchEvent(new Event('change'));
+    })()`);
+    assert.equal(await js('document.querySelectorAll(".cm-line.cm-manual-highlight").length'), 0,
+      'Clear highlight removes the selected rows only');
+
     for (const transparent of [true, false]) {
       await js(`window.floatCode.setTransparent(${transparent})`);
       const style = await js(`(() => {
